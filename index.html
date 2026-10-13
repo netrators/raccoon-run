@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Raccoon Escape 3D</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Inter', sans-serif; touch-action: none; user-select: none; }
+        canvas { display: block; width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; display: flex; flex-direction: column; }
+        .interactive { pointer-events: auto; }
+        
+        /* Glassmorphism panels */
+        .glass-panel { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        
+        /* Efecto de daño rojo */
+        #damage-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, transparent 50%, rgba(255,0,0,0.6) 100%); opacity: 0; transition: opacity 0.2s; z-index: 8; pointer-events: none; }
+        
+        /* Botones estilizados */
+        .btn-primary { background: linear-gradient(to right, #22c55e, #059669); box-shadow: 0 4px 15px rgba(34, 197, 94, 0.4); }
+        .btn-primary:hover { background: linear-gradient(to right, #4ade80, #10b981); transform: translateY(-2px); }
+        .btn-primary:active { transform: translateY(1px); }
+        
+        .btn-secondary { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255,255,255,0.2); }
+        .btn-secondary:hover { background: rgba(255, 255, 255, 0.2); }
+        .btn-secondary.active { background: rgba(59, 130, 246, 0.5); border-color: #3b82f6; }
+    </style>
+</head>
+<body>
+    <div id="damage-overlay"></div>
+    
+    <!-- Captura de gestos táctiles (ocupa toda la pantalla pero no bloquea clics en botones) -->
+    <div id="touch-zone" class="absolute top-0 left-0 w-full h-full z-5 interactive" style="touch-action: none;"></div>
+
+    <div id="ui-layer">
+        <!-- HUD Superior -->
+        <div id="hud" class="w-full flex justify-between items-start p-4 md:p-6 hidden">
+            <div class="glass-panel px-6 py-3 rounded-2xl shadow-lg flex flex-col pointer-events-none">
+                <span class="text-gray-400 text-xs font-bold uppercase tracking-wider">Puntuación</span>
+                <span id="scoreDisplay" class="text-white text-3xl font-black">0</span>
+            </div>
+            <div class="flex gap-4">
+                <div class="glass-panel px-6 py-3 rounded-2xl shadow-lg flex flex-col items-end pointer-events-none">
+                    <span class="text-red-400 text-xs font-bold uppercase tracking-wider">Cazador</span>
+                    <div class="w-24 h-3 bg-gray-700 rounded-full mt-1 overflow-hidden border border-gray-600">
+                        <div id="dangerBar" class="h-full bg-gradient-to-r from-orange-400 to-red-600 w-0 transition-all duration-300"></div>
+                    </div>
+                </div>
+                <!-- Botón de Pausa/Ajustes -->
+                <button id="pauseBtn" class="glass-panel w-12 h-12 rounded-2xl shadow-lg flex justify-center items-center interactive hover:bg-gray-700/80 transition-colors">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Pantalla de Inicio -->
+        <div id="startScreen" class="flex-1 flex flex-col justify-center items-center interactive bg-black/70 backdrop-blur-sm">
+            <div class="glass-panel p-8 md:p-12 rounded-3xl max-w-md w-full text-center shadow-2xl">
+                <h1 class="text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-br from-green-400 to-emerald-700 mb-2 drop-shadow-sm">RACCOON</h1>
+                <h2 class="text-3xl font-bold text-white mb-6 tracking-widest">ESCAPE</h2>
+                <div class="text-gray-300 mb-8 text-sm md:text-base leading-relaxed grid grid-cols-2 gap-4 text-left bg-black/30 p-4 rounded-xl">
+                    <p>⬅ ➡ <br><span class="text-xs text-gray-400">Mover (Swipe H)</span></p>
+                    <p>⬆ Arriba <br><span class="text-xs text-gray-400">Saltar (Swipe ⬆)</span></p>
+                    <p>⬇ Abajo <br><span class="text-xs text-gray-400">Deslizar (Swipe ⬇)</span></p>
+                    <p class="text-blue-400 text-center col-span-2 mt-2 font-bold">¡Recolecta las bolsas!</p>
+                </div>
+                <button id="startBtn" class="btn-primary w-full text-white font-bold py-4 rounded-xl transition uppercase tracking-widest text-lg">
+                    Empezar a Correr
+                </button>
+            </div>
+        </div>
+
+        <!-- Pantalla de Pausa / Ajustes -->
+        <div id="pauseScreen" class="flex-1 flex flex-col justify-center items-center interactive hidden bg-black/80 backdrop-blur-md">
+            <div class="glass-panel p-8 rounded-3xl max-w-sm w-full text-center shadow-2xl border border-gray-600">
+                <h1 class="text-3xl font-black text-white mb-6 tracking-wider">PAUSA</h1>
+                
+                <div class="mb-6">
+                    <span class="text-gray-400 text-xs font-bold uppercase block mb-2">Cámara</span>
+                    <div class="flex gap-2">
+                        <button id="camClassicBtn" class="btn-secondary active flex-1 py-2 rounded-lg text-sm text-white font-semibold transition">Clásica</button>
+                        <button id="camActionBtn" class="btn-secondary flex-1 py-2 rounded-lg text-sm text-white font-semibold transition">Acción</button>
+                        <button id="camTopBtn" class="btn-secondary flex-1 py-2 rounded-lg text-sm text-white font-semibold transition">Cenital</button>
+                    </div>
+                </div>
+
+                <div class="mb-8">
+                    <span class="text-gray-400 text-xs font-bold uppercase block mb-2">Gráficos</span>
+                    <div class="flex gap-2">
+                        <button id="gfxLowBtn" class="btn-secondary flex-1 py-2 rounded-lg text-sm text-white font-semibold transition">Bajo (Rápido)</button>
+                        <button id="gfxHighBtn" class="btn-secondary active flex-1 py-2 rounded-lg text-sm text-white font-semibold transition">Alto (Sombras)</button>
+                    </div>
+                </div>
+
+                <button id="resumeBtn" class="btn-primary w-full text-white font-bold py-3 rounded-xl transition uppercase tracking-widest mb-3">
+                    Continuar
+                </button>
+                <button id="quitBtn" class="btn-secondary w-full text-white font-bold py-3 rounded-xl transition uppercase tracking-widest border-red-500/30 hover:bg-red-500/20 text-red-400">
+                    Salir al Menú
+                </button>
+            </div>
+        </div>
+
+        <!-- Pantalla de Game Over -->
+        <div id="gameOverScreen" class="flex-1 flex flex-col justify-center items-center interactive hidden bg-red-900/60 backdrop-blur-md">
+            <div class="glass-panel p-8 md:p-12 rounded-3xl max-w-md w-full text-center shadow-2xl border-red-500/30">
+                <h1 class="text-5xl font-black text-red-500 mb-2 drop-shadow-md">¡ATRAPADO!</h1>
+                <p class="text-gray-300 mb-6 text-lg">Cuidado con los obstáculos.</p>
+                <div class="bg-black/50 rounded-xl p-4 mb-8">
+                    <span class="text-gray-400 uppercase text-sm font-bold block mb-1">Comida recolectada</span>
+                    <span id="finalScore" class="text-4xl font-black text-blue-400">0</span>
+                </div>
+                <button id="restartBtn" class="w-full bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white font-bold py-4 rounded-xl shadow-lg transform transition active:scale-95 uppercase tracking-widest text-lg">
+                    Intentar de nuevo
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Elementos UI
+        const uiStart = document.getElementById('startScreen');
+        const uiGameOver = document.getElementById('gameOverScreen');
+        const uiPause = document.getElementById('pauseScreen');
+        const uiHud = document.getElementById('hud');
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const finalScore = document.getElementById('finalScore');
+        const dangerBar = document.getElementById('dangerBar');
+        const damageOverlay = document.getElementById('damage-overlay');
+        const quitBtn = document.getElementById('quitBtn');
+        
+        // Variables Three.js
+        let scene, camera, renderer, dirLight;
+        let clock;
+        
+        // Estado del Juego
+        let gameState = 'START'; // START, PLAYING, PAUSED, GAMEOVER
+        let score = 0;
+        let speed = 0;
+        const maxSpeed = 30; // Un poco más rápido
+        let distanceTraveled = 0;
+        
+        // Configuraciones
+        let cameraMode = 'CLASSIC'; // CLASSIC, ACTION, TOP
+        let highQuality = true;
+
+        // Físicas y Movimiento
+        const laneWidth = 4;
+        let currentLane = 0; // -1, 0, 1
+        
+        // Físicas del Jugador (Salto y Deslizamiento)
+        let isJumping = false;
+        let isSliding = false;
+        let vy = 0; // Velocidad en el eje Y
+        const gravity = 50; 
+        const jumpForce = 18;
+        let slideTimer = 0;
+        const maxSlideTime = 0.8; // Segundos
+        
+        // Entidades
+        let playerGroup, playerBody, playerTail, playerLegs = [];
+        let hunterGroup;
+        let hunterDistance = 35;
+        const safeHunterDistance = 40;
+        
+        // Pools y Entorno
+        const activeObstacles = [];
+        const activeItems = [];
+        const objectPool = { tree: [], branch: [], trap: [], food: [] };
+        let ground;
+        const spawnDistance = 150;
+        let nextSpawnZ = -30;
+        
+        // Materiales Globales
+        const colors = {
+            bg: 0x081116, fog: 0x081116, ground: 0x112216,
+            treeTrunk: 0x3d2817, treeLeaves: 0x0f331b,
+            bush: 0x144a23, grass: 0x2e5c3a,
+            woodDark: 0x2b1c10, metal: 0x666666,
+            raccoonDark: 0x222222, raccoonLight: 0x888888, raccoonWhite: 0xeeeeee,
+            bag: 0x3b82f6, hunter: 0x8b0000
+        };
+
+        const mats = {
+            trunk: new THREE.MeshLambertMaterial({ color: colors.treeTrunk }),
+            leaves: new THREE.MeshLambertMaterial({ color: colors.treeLeaves, flatShading: true }),
+            bush: new THREE.MeshLambertMaterial({ color: colors.bush, flatShading: true }),
+            grass: new THREE.MeshLambertMaterial({ color: colors.grass }),
+            wood: new THREE.MeshLambertMaterial({ color: colors.woodDark }),
+            metal: new THREE.MeshStandardMaterial({ color: colors.metal, roughness: 0.4, metalness: 0.8 }),
+            raccoonD: new THREE.MeshLambertMaterial({ color: colors.raccoonDark }),
+            raccoonL: new THREE.MeshLambertMaterial({ color: colors.raccoonLight }),
+            raccoonW: new THREE.MeshLambertMaterial({ color: colors.raccoonWhite }),
+            bag: new THREE.MeshStandardMaterial({ color: colors.bag, roughness: 0.2, metalness: 0.5, emissive: 0x1d4ed8, emissiveIntensity: 0.3 }),
+            hunter: new THREE.MeshLambertMaterial({ color: colors.hunter })
+        };
+
+        function init() {
+            clock = new THREE.Clock();
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(colors.bg);
+            scene.fog = new THREE.Fog(colors.fog, 20, 120);
+
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 200);
+            
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = highQuality;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.body.appendChild(renderer.domElement);
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+
+            dirLight = new THREE.DirectionalLight(0x7da2c4, 1.2);
+            dirLight.position.set(20, 50, 20);
+            dirLight.castShadow = highQuality;
+            dirLight.shadow.camera.left = -30;
+            dirLight.shadow.camera.right = 30;
+            dirLight.shadow.camera.top = 40;
+            dirLight.shadow.camera.bottom = -40;
+            dirLight.shadow.camera.near = 0.1;
+            dirLight.shadow.camera.far = 150;
+            dirLight.shadow.bias = -0.001;
+            scene.add(dirLight);
+
+            const groundGeo = new THREE.PlaneGeometry(100, 400);
+            const groundMat = new THREE.MeshLambertMaterial({ color: colors.ground });
+            ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            createPlayer();
+            createHunter();
+            
+            // Generar un bosque denso al inicio
+            for(let i = 0; i < 120; i++) spawnSceneryTree();
+
+            setupEventListeners();
+            animate();
+        }
+
+        function createPlayer() {
+            playerGroup = new THREE.Group();
+            
+            // Cuerpo contenedor (para facilitar rotaciones/escalas generales)
+            playerBody = new THREE.Group();
+            playerGroup.add(playerBody);
+            
+            const bodyGeo = new THREE.BoxGeometry(1.2, 1, 2);
+            const bodyMesh = new THREE.Mesh(bodyGeo, mats.raccoonL);
+            bodyMesh.position.y = 1.2;
+            bodyMesh.castShadow = true;
+            playerBody.add(bodyMesh);
+
+            const headGroup = new THREE.Group();
+            headGroup.position.set(0, 1.5, -1.2);
+            const headBase = new THREE.Mesh(new THREE.BoxGeometry(1, 0.9, 1), mats.raccoonL); headBase.castShadow = true;
+            const snout = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.4, 0.6), mats.raccoonW); snout.position.set(0, -0.25, -0.7);
+            const nose = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.15, 0.2), mats.raccoonD); nose.position.set(0, -0.2, -1.05);
+            const mask = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.35, 0.5), mats.raccoonD); mask.position.set(0, 0.1, -0.3);
+            const eyeGeo = new THREE.BoxGeometry(0.15, 0.15, 0.1);
+            const eyeR = new THREE.Mesh(eyeGeo, mats.raccoonW); eyeR.position.set(0.25, 0.1, -0.55);
+            const eyeL = eyeR.clone(); eyeL.position.set(-0.25, 0.1, -0.55);
+            const earGeo = new THREE.ConeGeometry(0.25, 0.5, 4);
+            const earR = new THREE.Mesh(earGeo, mats.raccoonD); earR.position.set(0.35, 0.6, 0); earR.rotation.z = -0.2;
+            const earL = earR.clone(); earL.position.set(-0.35, 0.6, 0); earL.rotation.z = 0.2;
+            
+            headGroup.add(headBase, snout, nose, mask, eyeR, eyeL, earR, earL);
+            playerBody.add(headGroup);
+
+            playerTail = new THREE.Group();
+            playerTail.position.set(0, 1.4, 1);
+            const tailMesh = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 1.8), mats.raccoonD);
+            tailMesh.position.z = 0.9; tailMesh.castShadow = true;
+            const stripeGeo = new THREE.BoxGeometry(0.65, 0.65, 0.3);
+            const s1 = new THREE.Mesh(stripeGeo, mats.raccoonL); s1.position.z = 0.5;
+            const s2 = new THREE.Mesh(stripeGeo, mats.raccoonL); s2.position.z = 1.1;
+            const s3 = new THREE.Mesh(stripeGeo, mats.raccoonL); s3.position.z = 1.7;
+            tailMesh.add(s1, s2, s3);
+            playerTail.add(tailMesh);
+            playerTail.rotation.x = Math.PI / 6;
+            playerBody.add(playerTail);
+
+            const legGeo = new THREE.BoxGeometry(0.3, 0.8, 0.3);
+            const legPositions = [ [-0.4, 0.4, -0.6], [0.4, 0.4, -0.6], [-0.4, 0.4, 0.6], [0.4, 0.4, 0.6] ];
+            legPositions.forEach(pos => {
+                const legGroup = new THREE.Group();
+                legGroup.position.set(pos[0], pos[1] + 0.4, pos[2]);
+                const legMesh = new THREE.Mesh(legGeo, mats.raccoonD);
+                legMesh.position.y = -0.4; legMesh.castShadow = true;
+                legGroup.add(legMesh);
+                playerBody.add(legGroup);
+                playerLegs.push(legGroup);
+            });
+
+            scene.add(playerGroup);
+        }
+
+        function createHunter() {
+            hunterGroup = new THREE.Group();
+            const body = new THREE.Mesh(new THREE.BoxGeometry(2, 3.5, 1.5), mats.hunter);
+            body.position.y = 1.75; body.castShadow = true;
+            const head = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.2, 1.2), mats.raccoonD);
+            head.position.y = 4.1;
+            const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+            const eyeGeo = new THREE.BoxGeometry(0.3, 0.15, 0.1);
+            const eyeR = new THREE.Mesh(eyeGeo, eyeMat); eyeR.position.set(0.3, 4.2, -0.65);
+            const eyeL = new THREE.Mesh(eyeGeo, eyeMat); eyeL.position.set(-0.3, 4.2, -0.65);
+            
+            hunterGroup.add(body, head, eyeR, eyeL);
+            hunterGroup.position.z = hunterDistance;
+            scene.add(hunterGroup);
+        }
+
+        function createTree() {
+            const group = new THREE.Group();
+            const trunkH = 2 + Math.random() * 2;
+            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.7, trunkH, 5), mats.trunk);
+            trunk.position.y = trunkH / 2; trunk.castShadow = true;
+            group.add(trunk);
+            
+            let yOffset = trunkH * 0.8;
+            for(let i=0; i<3; i++) {
+                const leaves = new THREE.Mesh(new THREE.ConeGeometry(2.5 - i*0.5, 3, 5), mats.leaves);
+                leaves.position.y = yOffset + 1.5; leaves.castShadow = true;
+                group.add(leaves);
+                yOffset += 1.8;
+            }
+            group.userData = { type: 'tree', radius: 1, active: true };
+            return group;
+        }
+
+        function createBush() {
+            const group = new THREE.Group();
+            const geo = new THREE.DodecahedronGeometry(1 + Math.random() * 0.5);
+            const bush1 = new THREE.Mesh(geo, mats.bush);
+            bush1.position.y = 0.5; bush1.castShadow = true;
+            const bush2 = new THREE.Mesh(geo, mats.bush);
+            bush2.position.set(0.8, 0.3, 0.5); bush2.scale.setScalar(0.7); bush2.castShadow = true;
+            const bush3 = new THREE.Mesh(geo, mats.bush);
+            bush3.position.set(-0.8, 0.4, -0.2); bush3.scale.setScalar(0.8); bush3.castShadow = true;
+            group.add(bush1, bush2, bush3);
+            return group;
+        }
+
+        function createGrass() {
+            const group = new THREE.Group();
+            const geo = new THREE.ConeGeometry(0.1, 0.8, 3);
+            for(let i=0; i<5; i++) {
+                const blade = new THREE.Mesh(geo, mats.grass);
+                blade.position.set((Math.random()-0.5), 0.4, (Math.random()-0.5));
+                blade.rotation.x = (Math.random()-0.5)*0.5;
+                blade.rotation.z = (Math.random()-0.5)*0.5;
+                group.add(blade);
+            }
+            return group;
+        }
+
+        function createBranch() {
+            // Rama alta: Requiere deslizarse
+            const group = new THREE.Group();
+            // Dos soportes a los lados
+            const p1 = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 2.5, 4), mats.trunk);
+            p1.position.set(-1.8, 1.25, 0); p1.castShadow = true;
+            const p2 = p1.clone(); p2.position.set(1.8, 1.25, 0);
+            
+            // Tronco horizontal flotante (hitbox real)
+            const logH = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 4, 6), mats.wood);
+            logH.rotation.z = Math.PI / 2;
+            logH.position.y = 2.2; logH.castShadow = true;
+            
+            group.add(p1, p2, logH);
+            group.userData = { type: 'branch', radius: 0.8, active: true }; // Hitbox más pequeña
+            return group;
+        }
+
+        function createTrap() {
+            // Trampa de picos en el suelo: Requiere saltar
+            const group = new THREE.Group();
+            const base = new THREE.Mesh(new THREE.BoxGeometry(3, 0.2, 1.5), mats.wood);
+            base.position.y = 0.1; base.castShadow = true;
+            
+            for(let i=0; i<3; i++) {
+                const spike = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.8, 4), mats.metal);
+                spike.position.set(-1 + i, 0.5, 0); spike.castShadow = true;
+                group.add(spike);
+            }
+            group.add(base);
+            group.userData = { type: 'trap', radius: 1.2, active: true };
+            return group;
+        }
+
+        function createFoodBag() {
+            const group = new THREE.Group();
+            const bag = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.6, 0.8, 6), mats.bag);
+            bag.position.y = 0.4; bag.castShadow = true;
+            const knot = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.4, 5), mats.bag);
+            knot.position.y = 1.0;
+            group.add(bag, knot);
+            group.userData = { type: 'food', radius: 0.8, active: true, baseRot: Math.random() * Math.PI };
+            return group;
+        }
+
+        const sceneryTrees = [];
+        function spawnSceneryTree() {
+            let item;
+            const rand = Math.random();
+            // Elegir aleatoriamente qué tipo de vegetación generar a los lados
+            if (rand < 0.35) item = createTree();
+            else if (rand < 0.7) item = createBush();
+            else item = createGrass();
+            
+            const side = Math.random() > 0.5 ? 1 : -1;
+            // Posicionar fuera de los 3 carriles centrales (carriles: -4, 0, 4)
+            item.position.x = side * (7 + Math.random() * 25);
+            item.position.z = -Math.random() * 250 + 50;
+            scene.add(item);
+            sceneryTrees.push(item);
+        }
+
+        function getFromPool(type, createFunc) {
+            let item = objectPool[type].find(o => !o.userData.active);
+            if (!item) {
+                item = createFunc();
+                objectPool[type].push(item);
+                scene.add(item);
+            }
+            item.userData.active = true;
+            item.visible = true;
+            return item;
+        }
+
+        function spawnRow() {
+            const lanes = [-1, 0, 1].sort(() => Math.random() - 0.5);
+            const numObstacles = Math.random() > 0.4 ? 2 : 1; 
+            
+            for(let i=0; i<3; i++) {
+                const laneIdx = lanes[i];
+                const xPos = laneIdx * laneWidth;
+
+                if (i < numObstacles) {
+                    // Elegir tipo de obstáculo al azar y obtener del Pool
+                    const rand = Math.random();
+                    let obs;
+                    if (rand < 0.5) obs = getFromPool('tree', createTree);
+                    else if (rand < 0.75) obs = getFromPool('branch', createBranch);
+                    else obs = getFromPool('trap', createTrap);
+                    
+                    obs.position.set(xPos, 0, nextSpawnZ);
+                    if (!activeObstacles.includes(obs)) activeObstacles.push(obs);
+                } else if (Math.random() > 0.3) {
+                    const food = getFromPool('food', createFoodBag);
+                    food.position.set(xPos, 0, nextSpawnZ);
+                    if (!activeItems.includes(food)) activeItems.push(food);
+                }
+            }
+            nextSpawnZ -= (15 + Math.random() * 12); // Más espacio entre obstáculos para reaccionar
+        }
+
+        let touchStartX = 0;
+        let touchStartY = 0;
+
+        function setupEventListeners() {
+            window.addEventListener('resize', onWindowResize);
+            
+            // Botones de UI
+            document.getElementById('startBtn').addEventListener('click', startGame);
+            document.getElementById('restartBtn').addEventListener('click', startGame);
+            document.getElementById('pauseBtn').addEventListener('click', togglePause);
+            document.getElementById('resumeBtn').addEventListener('click', togglePause);
+            quitBtn.addEventListener('click', quitToMenu);
+
+            // Ajustes de Cámara
+            document.querySelectorAll('[id^="cam"]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('[id^="cam"]').forEach(b => b.classList.remove('active'));
+                    e.target.classList.add('active');
+                    if(e.target.id === 'camClassicBtn') cameraMode = 'CLASSIC';
+                    if(e.target.id === 'camActionBtn') cameraMode = 'ACTION';
+                    if(e.target.id === 'camTopBtn') cameraMode = 'TOP';
+                });
+            });
+
+            // Ajustes de Gráficos
+            document.getElementById('gfxLowBtn').addEventListener('click', (e) => setQuality(false, e.target));
+            document.getElementById('gfxHighBtn').addEventListener('click', (e) => setQuality(true, e.target));
+            
+            // Teclado
+            window.addEventListener('keydown', (e) => {
+                if (gameState !== 'PLAYING') {
+                    if (e.key === 'Escape' && (gameState === 'PLAYING' || gameState === 'PAUSED')) togglePause();
+                    return;
+                }
+                
+                if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') moveLateral(-1);
+                else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') moveLateral(1);
+                else if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') jump();
+                else if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') slide();
+            });
+
+            // Táctil (Swipes unificados y optimizados para móviles)
+            const touchZone = document.getElementById('touch-zone');
+            touchZone.addEventListener('touchstart', e => {
+                touchStartX = e.changedTouches[0].screenX;
+                touchStartY = e.changedTouches[0].screenY;
+            }, { passive: false });
+
+            // Bloquear scroll de la página y gestos por defecto del navegador (pull to refresh)
+            touchZone.addEventListener('touchmove', e => {
+                e.preventDefault();
+            }, { passive: false });
+
+            touchZone.addEventListener('touchend', e => {
+                if (gameState !== 'PLAYING') return;
+                
+                let touchEndX = e.changedTouches[0].screenX;
+                let touchEndY = e.changedTouches[0].screenY;
+                let dx = touchEndX - touchStartX;
+                let dy = touchEndY - touchStartY;
+                
+                // Umbral mínimo de movimiento para considerarlo swipe
+                if (Math.abs(dx) < 30 && Math.abs(dy) < 30) return; 
+                
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    // Horizontal
+                    moveLateral(dx > 0 ? 1 : -1);
+                } else {
+                    // Vertical
+                    if (dy < 0) jump();
+                    else slide();
+                }
+            });
+        }
+
+        function moveLateral(dir) {
+            currentLane += dir;
+            if (currentLane < -1) currentLane = -1;
+            if (currentLane > 1) currentLane = 1;
+        }
+
+        function jump() {
+            if (!isJumping && !isSliding) {
+                isJumping = true;
+                vy = jumpForce;
+            }
+        }
+
+        function slide() {
+            if (!isJumping && !isSliding) {
+                isSliding = true;
+                slideTimer = maxSlideTime;
+                // Aplastar el modelo visualmente
+                playerBody.scale.set(1.2, 0.4, 1.2);
+                playerBody.position.y = 0.5; // Bajar para que toque el suelo aplastado
+            }
+        }
+
+        function setQuality(isHigh, btnElement) {
+            highQuality = isHigh;
+            document.getElementById('gfxLowBtn').classList.remove('active');
+            document.getElementById('gfxHighBtn').classList.remove('active');
+            btnElement.classList.add('active');
+            
+            renderer.shadowMap.enabled = highQuality;
+            dirLight.castShadow = highQuality;
+            
+            scene.traverse(child => {
+                if (child.isMesh) {
+                    child.castShadow = highQuality;
+                    child.receiveShadow = highQuality;
+                }
+            });
+        }
+
+        function togglePause() {
+            if (gameState === 'PLAYING') {
+                gameState = 'PAUSED';
+                uiPause.classList.remove('hidden');
+                clock.stop();
+            } else if (gameState === 'PAUSED') {
+                gameState = 'PLAYING';
+                uiPause.classList.add('hidden');
+                clock.start();
+            }
+        }
+
+        function quitToMenu() {
+            gameState = 'START';
+            uiPause.classList.add('hidden');
+            uiGameOver.classList.add('hidden');
+            uiHud.classList.add('hidden');
+            uiStart.classList.remove('hidden');
+            damageOverlay.style.opacity = '0';
+            
+            // Ocultar objetos y regresarlos al pool
+            activeObstacles.forEach(o => { o.userData.active = false; o.visible = false; });
+            activeItems.forEach(i => { i.userData.active = false; i.visible = false; });
+            activeObstacles.length = 0;
+            activeItems.length = 0;
+            
+            // Reposicionar inicio
+            playerGroup.position.set(0, 0, 0);
+            camera.position.set(0, 2, -10);
+        }
+
+        function startGame() {
+            // Limpiar y ocultar elementos anteriores
+            activeObstacles.forEach(o => { o.userData.active = false; o.visible = false; });
+            activeItems.forEach(i => { i.userData.active = false; i.visible = false; });
+            activeObstacles.length = 0;
+            activeItems.length = 0;
+            
+            score = 0;
+            scoreDisplay.innerText = score;
+            speed = 8;
+            currentLane = 0;
+            
+            // Reiniciar Físicas
+            isJumping = false;
+            isSliding = false;
+            vy = 0;
+            playerBody.scale.set(1, 1, 1);
+            playerBody.position.y = 0;
+            playerGroup.position.set(0, 0, 0);
+            
+            hunterDistance = safeHunterDistance;
+            hunterGroup.position.set(0, 0, hunterDistance);
+            
+            nextSpawnZ = -40;
+            for(let i=0; i<8; i++) spawnRow();
+
+            // UI
+            uiStart.classList.add('hidden');
+            uiGameOver.classList.add('hidden');
+            uiPause.classList.add('hidden');
+            uiHud.classList.remove('hidden');
+            damageOverlay.style.opacity = '0';
+
+            gameState = 'PLAYING';
+            clock.start(); // Reiniciar reloj delta
+        }
+
+        function gameOver() {
+            gameState = 'GAMEOVER';
+            uiHud.classList.add('hidden');
+            uiGameOver.classList.remove('hidden');
+            finalScore.innerText = score;
+        }
+
+        function hitObstacle() {
+            // El impacto ralentiza, pero no tanto como antes
+            speed = Math.max(8, speed * 0.5); 
+            damageOverlay.style.opacity = '1';
+            setTimeout(() => { damageOverlay.style.opacity = '0'; }, 300);
+            
+            playerBody.rotation.z = (Math.random() - 0.5) * 1.5;
+            
+            // Penalización: el cazador se acerca agresivamente
+            hunterDistance -= 15;
+            
+            // Si la distancia baja demasiado, mueres
+            if (hunterDistance <= 2) {
+                gameOver();
+            }
+        }
+
+        function collectFood(item) {
+            item.userData.active = false;
+            item.visible = false; // Solo se oculta visualmente
+            
+            score += 10;
+            scoreDisplay.innerText = score;
+            
+            speed = Math.min(speed + 2, maxSpeed); 
+            hunterDistance = Math.min(hunterDistance + 5, safeHunterDistance);
+
+            // Efecto visual al comer
+            playerBody.scale.set(1.3, 1.3, 1.3);
+            if(!isSliding) setTimeout(() => { playerBody.scale.set(1,1,1); }, 150);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if (gameState === 'PAUSED') return;
+
+            // Limitar el delta para evitar un salto si cambias de pestaña
+            const delta = Math.min(clock.getDelta(), 0.1);
+            const time = clock.getElapsedTime();
+
+            if (gameState === 'PLAYING') {
+                // Aceleración Progresiva
+                speed = Math.min(speed + delta * 0.6, maxSpeed);
+                const moveStep = speed * delta;
+                playerGroup.position.z -= moveStep;
+
+                // Movimiento Lateral Suave
+                const targetX = currentLane * laneWidth;
+                playerGroup.position.x += (targetX - playerGroup.position.x) * 15 * delta;
+                
+                // Estabilizar rotación al chocar
+                playerBody.rotation.z += (0 - playerBody.rotation.z) * 5 * delta;
+
+                // -- FÍSICAS DE SALTO --
+                if (isJumping) {
+                    vy -= gravity * delta;
+                    playerGroup.position.y += vy * delta;
+                    
+                    if (playerGroup.position.y <= 0) {
+                        playerGroup.position.y = 0;
+                        isJumping = false;
+                        vy = 0;
+                    }
+                }
+
+                // -- FÍSICAS DE DESLIZAMIENTO --
+                if (isSliding) {
+                    slideTimer -= delta;
+                    if (slideTimer <= 0) {
+                        isSliding = false;
+                        playerBody.scale.set(1, 1, 1);
+                        playerBody.position.y = 0;
+                    }
+                }
+
+                // -- CÁMARA --
+                let camTarget = { x: playerGroup.position.x * 0.5, y: 7, z: playerGroup.position.z + 14 }; // Classic
+                let lookTarget = { x: playerGroup.position.x * 0.2, y: 2, z: playerGroup.position.z - 10 };
+                
+                if (cameraMode === 'ACTION') {
+                    camTarget = { x: playerGroup.position.x * 0.8, y: 3.5, z: playerGroup.position.z + 7 };
+                    lookTarget.y = 3; lookTarget.z = playerGroup.position.z - 15;
+                } else if (cameraMode === 'TOP') {
+                    camTarget = { x: playerGroup.position.x * 0.3, y: 20, z: playerGroup.position.z + 10 };
+                    lookTarget.y = 0; lookTarget.z = playerGroup.position.z - 5;
+                }
+
+                // Suavizar movimiento de cámara
+                camera.position.x += (camTarget.x - camera.position.x) * 5 * delta;
+                camera.position.y += (camTarget.y - camera.position.y) * 5 * delta;
+                camera.position.z = camTarget.z; // Z sigue rígido para no perder al jugador
+                camera.lookAt(lookTarget.x, lookTarget.y, lookTarget.z);
+                
+                ground.position.z = playerGroup.position.z;
+
+                // -- CAZADOR --
+                // El mapache recupera distancia lentamente si huye sin chocar
+                if (hunterDistance < safeHunterDistance) {
+                    hunterDistance += 3 * delta; 
+                }
+                // Limitar la distancia máxima
+                hunterDistance = Math.min(hunterDistance, safeHunterDistance);
+                
+                // El cazador siempre sigue al mapache exactamente a la 'hunterDistance'
+                hunterGroup.position.z = playerGroup.position.z + hunterDistance;
+                
+                // Actualizar la UI
+                const dangerPct = Math.max(0, 100 - (hunterDistance / safeHunterDistance) * 100);
+                dangerBar.style.width = `${dangerPct}%`;
+                
+                if (dangerPct > 70) dangerBar.classList.replace('from-orange-400', 'from-red-600');
+                else dangerBar.classList.replace('from-red-600', 'from-orange-400');
+                
+                // Suavizar el movimiento horizontal del cazador para que te siga
+                hunterGroup.position.x += (playerGroup.position.x - hunterGroup.position.x) * 3 * delta;
+
+                // -- ANIMACIONES MAPACHE --
+                if (!isJumping && !isSliding) {
+                    const runCycle = time * speed * 0.8;
+                    playerBody.position.y = Math.abs(Math.sin(runCycle)) * 0.3;
+                    
+                    playerLegs[0].rotation.x = Math.sin(runCycle) * 0.8;
+                    playerLegs[1].rotation.x = -Math.sin(runCycle) * 0.8;
+                    playerLegs[2].rotation.x = -Math.sin(runCycle) * 0.8;
+                    playerLegs[3].rotation.x = Math.sin(runCycle) * 0.8;
+                } else if (isJumping) {
+                    playerLegs.forEach(leg => leg.rotation.x = -0.5); // Patas encogidas
+                } else if (isSliding) {
+                    playerLegs.forEach(leg => leg.rotation.x = Math.PI/2); // Patas estiradas atrás
+                }
+                
+                playerTail.rotation.y = Math.sin(time * speed * 1.5) * 0.3;
+
+                // -- GENERACIÓN --
+                if (playerGroup.position.z - spawnDistance < nextSpawnZ) {
+                    spawnRow();
+                }
+
+                // -- COLISIONES AVANZADAS --
+                const pZ = playerGroup.position.z;
+                const pX = playerGroup.position.x;
+                const pRadius = 0.6; 
+
+                for (let i = activeObstacles.length - 1; i >= 0; i--) {
+                    const obs = activeObstacles[i];
+                    
+                    if (obs.userData.active && Math.abs(obs.position.z - pZ) < 1.5) {
+                        const dist = Math.hypot(obs.position.x - pX, obs.position.z - pZ);
+                        
+                        if (dist < obs.userData.radius + pRadius) {
+                            let collision = false;
+                            
+                            if (obs.userData.type === 'tree') {
+                                collision = true; // El árbol choca siempre si estás en su carril
+                            } else if (obs.userData.type === 'branch') {
+                                if (!isSliding) collision = true; // Chocas si no te deslizas
+                            } else if (obs.userData.type === 'trap') {
+                                if (!isJumping || playerGroup.position.y < 1.2) collision = true; // Chocas si no saltas lo suficiente
+                            }
+
+                            if (collision) {
+                                obs.userData.active = false;
+                                hitObstacle();
+                            }
+                        }
+                    }
+                    if (obs.position.z > pZ + 15) {
+                        obs.userData.active = false;
+                        obs.visible = false;
+                        activeObstacles.splice(i, 1);
+                    }
+                }
+
+                // Comida
+                for (let i = activeItems.length - 1; i >= 0; i--) {
+                    const item = activeItems[i];
+                    if (item.userData.active) {
+                        item.rotation.y += 3 * delta;
+                        item.position.y = Math.sin(time * 5 + item.userData.baseRot) * 0.3;
+                        
+                        if (Math.abs(item.position.z - pZ) < 1.5) {
+                            const dist = Math.hypot(item.position.x - pX, item.position.z - pZ);
+                            // Se puede agarrar la comida incluso saltando o deslizándose
+                            if (dist < item.userData.radius + pRadius) collectFood(item);
+                        }
+                    }
+                    if (item.position.z > pZ + 15) {
+                        item.userData.active = false;
+                        item.visible = false;
+                        activeItems.splice(i, 1);
+                    }
+                }
+                
+                sceneryTrees.forEach(tree => {
+                    if (tree.position.z > pZ + 20) tree.position.z = pZ - 180 - Math.random()*70;
+                });
+                
+            } else if (gameState === 'START') {
+                camera.position.x = Math.sin(time * 0.5) * 5;
+                camera.lookAt(0, 2, -10);
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
