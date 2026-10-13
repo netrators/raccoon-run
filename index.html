@@ -3,184 +3,397 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Raccoon Escape 3D</title>
+    <title>Raccoon Escape 3D Deluxe</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Inter', sans-serif; touch-action: none; user-select: none; }
-        canvas { display: block; width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
-        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; display: flex; flex-direction: column; }
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Inter:wght@400;700;900&display=swap');
+
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background-color: #050a0f; 
+            font-family: 'Inter', sans-serif; 
+            touch-action: none; 
+            user-select: none; 
+            -webkit-tap-highlight-color: transparent;
+        }
+        canvas { 
+            display: block; 
+            width: 100vw; 
+            height: 100vh; 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            z-index: 1; 
+        }
+        #ui-layer { 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            z-index: 10; 
+            pointer-events: none; 
+            display: flex; 
+            flex-direction: column; 
+        }
         .interactive { pointer-events: auto; }
         
-        /* Glassmorphism panels */
-        .glass-panel { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        /* Glassmorphism avanzado */
+        .glass-panel { 
+            background: rgba(15, 23, 42, 0.7); 
+            backdrop-filter: blur(16px); 
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.15); 
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
         
+        /* Títulos estilo juego */
+        .game-title {
+            font-family: 'Fredoka One', cursive;
+            -webkit-text-stroke: 2px #064e3b;
+            text-shadow: 4px 4px 0px #064e3b, 8px 8px 15px rgba(0,0,0,0.5);
+        }
+
         /* Efecto de daño rojo */
-        #damage-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, transparent 50%, rgba(255,0,0,0.6) 100%); opacity: 0; transition: opacity 0.2s; z-index: 8; pointer-events: none; }
+        #damage-overlay { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            background: radial-gradient(circle, transparent 40%, rgba(255,0,0,0.8) 100%); 
+            opacity: 0; transition: opacity 0.15s ease-out; z-index: 8; pointer-events: none; 
+        }
+
+        /* Efecto de velocidad (speed lines) */
+        #speed-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, transparent 60%, rgba(255, 255, 255, 0.1) 100%);
+            opacity: 0; transition: opacity 0.5s; z-index: 7; pointer-events: none;
+            box-shadow: inset 0 0 50px rgba(0,0,0,0.5);
+        }
         
-        /* Botones estilizados */
-        .btn-primary { background: linear-gradient(to right, #22c55e, #059669); box-shadow: 0 4px 15px rgba(34, 197, 94, 0.4); }
-        .btn-primary:hover { background: linear-gradient(to right, #4ade80, #10b981); transform: translateY(-2px); }
-        .btn-primary:active { transform: translateY(1px); }
+        /* Botones estilizados Premium */
+        .btn-primary { 
+            background: linear-gradient(135deg, #22c55e, #059669); 
+            box-shadow: 0 6px 0 #047857, 0 10px 20px rgba(34, 197, 94, 0.4); 
+            transition: all 0.1s;
+        }
+        .btn-primary:hover { 
+            background: linear-gradient(135deg, #4ade80, #10b981); 
+            transform: translateY(-2px); 
+            box-shadow: 0 8px 0 #047857, 0 15px 25px rgba(34, 197, 94, 0.5);
+        }
+        .btn-primary:active { 
+            transform: translateY(6px); 
+            box-shadow: 0 0px 0 #047857, 0 5px 10px rgba(34, 197, 94, 0.4); 
+        }
+
+        .btn-action {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            box-shadow: 0 6px 0 #b45309, 0 10px 20px rgba(245, 158, 11, 0.4);
+        }
+        .btn-action:hover { background: linear-gradient(135deg, #fbbf24, #f59e0b); transform: translateY(-2px); box-shadow: 0 8px 0 #b45309, 0 15px 25px rgba(245, 158, 11, 0.5); }
+        .btn-action:active { transform: translateY(6px); box-shadow: 0 0px 0 #b45309; }
         
         .btn-secondary { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255,255,255,0.2); }
-        .btn-secondary:hover { background: rgba(255, 255, 255, 0.2); }
-        .btn-secondary.active { background: rgba(59, 130, 246, 0.5); border-color: #3b82f6; }
+        .btn-secondary:hover { background: rgba(255, 255, 255, 0.2); transform: scale(1.05); }
+        .btn-secondary.active { background: rgba(59, 130, 246, 0.6); border-color: #60a5fa; box-shadow: 0 0 15px rgba(59, 130, 246, 0.5); }
+
+        /* Animaciones para el puntaje flotante */
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            50% { transform: translateY(-30px) scale(1.5); }
+            100% { opacity: 0; transform: translateY(-60px) scale(1); }
+        }
+        .floating-score {
+            position: absolute;
+            color: #fbbf24;
+            font-family: 'Fredoka One', cursive;
+            font-size: 2rem;
+            text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+            pointer-events: none;
+            animation: floatUp 1s ease-out forwards;
+            z-index: 20;
+        }
+        @keyframes pulseScore {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.3); color: #fbbf24; }
+            100% { transform: scale(1); }
+        }
+        .score-pulse { animation: pulseScore 0.3s ease-out; }
+
+        /* Animación para el menú de customización */
+        .slide-in { animation: slideIn 0.3s forwards; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
     </style>
 </head>
 <body>
     <div id="damage-overlay"></div>
+    <div id="speed-overlay"></div>
     
-    <!-- Captura de gestos táctiles (ocupa toda la pantalla pero no bloquea clics en botones) -->
+    <!-- Zona táctil global -->
     <div id="touch-zone" class="absolute top-0 left-0 w-full h-full z-5 interactive" style="touch-action: none;"></div>
+    
+    <!-- Contenedor para puntajes flotantes en el DOM -->
+    <div id="floating-scores-container" class="absolute top-0 left-0 w-full h-full z-20 pointer-events-none overflow-hidden"></div>
 
     <div id="ui-layer">
-        <!-- HUD Superior -->
+        <!-- HUD Principal (Durante el juego) -->
         <div id="hud" class="w-full flex justify-between items-start p-4 md:p-6 hidden">
-            <div class="glass-panel px-6 py-3 rounded-2xl shadow-lg flex flex-col pointer-events-none">
-                <span class="text-gray-400 text-xs font-bold uppercase tracking-wider">Puntuación</span>
-                <span id="scoreDisplay" class="text-white text-3xl font-black">0</span>
+            <div class="glass-panel px-6 py-3 rounded-2xl shadow-lg flex flex-col pointer-events-none transform transition-transform" id="scoreContainer">
+                <span class="text-gray-300 text-xs font-bold uppercase tracking-wider mb-1">Puntuación Total</span>
+                <div class="flex items-center gap-2">
+                    <span id="scoreDisplay" class="text-white text-4xl font-black font-['Fredoka_One'] tracking-wide">0</span>
+                    <span class="text-green-400 text-sm font-bold" id="scoreMultiplier">x1</span>
+                </div>
             </div>
             <div class="flex gap-4">
                 <div class="glass-panel px-6 py-3 rounded-2xl shadow-lg flex flex-col items-end pointer-events-none">
-                    <span class="text-red-400 text-xs font-bold uppercase tracking-wider">Cazador</span>
-                    <div class="w-24 h-3 bg-gray-700 rounded-full mt-1 overflow-hidden border border-gray-600">
-                        <div id="dangerBar" class="h-full bg-gradient-to-r from-orange-400 to-red-600 w-0 transition-all duration-300"></div>
+                    <span class="text-red-400 text-xs font-bold uppercase tracking-wider">Peligro: Cazador</span>
+                    <div class="w-32 md:w-48 h-4 bg-gray-900 rounded-full mt-2 overflow-hidden border border-gray-600 shadow-inner">
+                        <div id="dangerBar" class="h-full bg-gradient-to-r from-yellow-400 via-orange-500 to-red-600 w-0 transition-all duration-300 relative">
+                            <!-- Efecto de brillo en la barra -->
+                            <div class="absolute top-0 right-0 bottom-0 left-0 bg-white/20 w-full animate-pulse"></div>
+                        </div>
                     </div>
                 </div>
-                <!-- Botón de Pausa/Ajustes -->
-                <button id="pauseBtn" class="glass-panel w-12 h-12 rounded-2xl shadow-lg flex justify-center items-center interactive hover:bg-gray-700/80 transition-colors">
-                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                <button id="pauseBtn" class="glass-panel w-14 h-14 rounded-2xl shadow-lg flex justify-center items-center interactive hover:bg-white/10 transition-colors">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                 </button>
             </div>
         </div>
 
-        <!-- Pantalla de Inicio -->
-        <div id="startScreen" class="flex-1 flex flex-col justify-center items-center interactive bg-black/70 backdrop-blur-sm">
-            <div class="glass-panel p-8 md:p-12 rounded-3xl max-w-md w-full text-center shadow-2xl">
-                <h1 class="text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-br from-green-400 to-emerald-700 mb-2 drop-shadow-sm">RACCOON</h1>
-                <h2 class="text-3xl font-bold text-white mb-6 tracking-widest">ESCAPE</h2>
-                <div class="text-gray-300 mb-8 text-sm md:text-base leading-relaxed grid grid-cols-2 gap-4 text-left bg-black/30 p-4 rounded-xl">
-                    <p>⬅ ➡ <br><span class="text-xs text-gray-400">Mover (Swipe H)</span></p>
-                    <p>⬆ Arriba <br><span class="text-xs text-gray-400">Saltar (Swipe ⬆)</span></p>
-                    <p>⬇ Abajo <br><span class="text-xs text-gray-400">Deslizar (Swipe ⬇)</span></p>
-                    <p class="text-blue-400 text-center col-span-2 mt-2 font-bold">¡Recolecta las bolsas!</p>
+        <!-- Menú Principal -->
+        <div id="startScreen" class="flex-1 flex flex-col justify-between items-center interactive bg-black/40 backdrop-blur-sm pb-10 pt-20">
+            <div class="text-center">
+                <h1 class="text-6xl md:text-8xl text-transparent bg-clip-text bg-gradient-to-b from-green-300 to-emerald-600 mb-2 game-title">RACCOON</h1>
+                <h2 class="text-4xl md:text-5xl font-black text-white tracking-[0.3em] drop-shadow-lg font-['Fredoka_One']">DELUXE</h2>
+            </div>
+            
+            <div class="glass-panel p-6 rounded-3xl max-w-lg w-full text-center shadow-2xl mx-4 mb-8">
+                <div class="grid grid-cols-2 gap-4 text-left bg-black/40 p-5 rounded-2xl mb-6 border border-white/5">
+                    <div class="flex items-center gap-3">
+                        <div class="bg-gray-800 p-2 rounded text-xl">⬅➡</div>
+                        <div><p class="text-white font-bold">Moverse</p><p class="text-xs text-gray-400">Swipe H / A-D</p></div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="bg-gray-800 p-2 rounded text-xl">⬆</div>
+                        <div><p class="text-white font-bold">Saltar</p><p class="text-xs text-gray-400">Swipe Arriba / W</p></div>
+                    </div>
+                    <div class="flex items-center gap-3 col-span-2 justify-center border-t border-gray-700 pt-3 mt-1">
+                        <div class="bg-gray-800 p-2 rounded text-xl">⬇</div>
+                        <div><p class="text-white font-bold">Deslizarse</p><p class="text-xs text-gray-400">Swipe Abajo / S</p></div>
+                    </div>
                 </div>
-                <button id="startBtn" class="btn-primary w-full text-white font-bold py-4 rounded-xl transition uppercase tracking-widest text-lg">
-                    Empezar a Correr
+                
+                <div class="flex flex-col gap-4">
+                    <button id="startBtn" class="btn-primary w-full text-white font-black py-5 rounded-2xl text-2xl uppercase tracking-wider font-['Fredoka_One']">
+                        ¡CORRER!
+                    </button>
+                    <button id="openCustomizeBtn" class="btn-action w-full text-white font-bold py-4 rounded-2xl text-xl uppercase tracking-wider">
+                        👕 Personalizar Mapache
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Menú de Personalización (Oculto por defecto) -->
+        <div id="customizeScreen" class="flex-1 flex flex-col justify-end items-center interactive hidden bg-gradient-to-t from-black/90 to-transparent pb-10">
+            <div class="text-center absolute top-10 w-full">
+                <h2 class="text-4xl font-black text-white tracking-widest drop-shadow-lg font-['Fredoka_One']">ESTILO</h2>
+            </div>
+            
+            <div class="glass-panel p-6 rounded-3xl max-w-md w-full text-center shadow-2xl mx-4 slide-in">
+                <!-- Selector de Piel -->
+                <div class="mb-5">
+                    <span class="text-gray-400 text-sm font-bold uppercase tracking-wider block mb-2">Color del Pelaje</span>
+                    <div class="flex justify-between items-center bg-black/40 rounded-xl p-2 border border-white/10">
+                        <button id="skinPrev" class="text-white p-2 hover:bg-white/20 rounded-lg">◀</button>
+                        <span id="skinLabel" class="text-white font-bold text-lg">Clásico (Gris)</span>
+                        <button id="skinNext" class="text-white p-2 hover:bg-white/20 rounded-lg">▶</button>
+                    </div>
+                </div>
+                
+                <!-- Selector de Gorro -->
+                <div class="mb-5">
+                    <span class="text-gray-400 text-sm font-bold uppercase tracking-wider block mb-2">Gorro / Accesorio</span>
+                    <div class="flex justify-between items-center bg-black/40 rounded-xl p-2 border border-white/10">
+                        <button id="hatPrev" class="text-white p-2 hover:bg-white/20 rounded-lg">◀</button>
+                        <span id="hatLabel" class="text-white font-bold text-lg">Ninguno</span>
+                        <button id="hatNext" class="text-white p-2 hover:bg-white/20 rounded-lg">▶</button>
+                    </div>
+                </div>
+
+                <button id="closeCustomizeBtn" class="btn-primary w-full text-white font-bold py-4 rounded-xl transition uppercase tracking-widest text-lg mt-2">
+                    Confirmar y Volver
                 </button>
             </div>
         </div>
 
-        <!-- Pantalla de Pausa / Ajustes -->
+        <!-- Menú de Pausa -->
         <div id="pauseScreen" class="flex-1 flex flex-col justify-center items-center interactive hidden bg-black/80 backdrop-blur-md">
             <div class="glass-panel p-8 rounded-3xl max-w-sm w-full text-center shadow-2xl border border-gray-600">
-                <h1 class="text-3xl font-black text-white mb-6 tracking-wider">PAUSA</h1>
+                <h1 class="text-4xl font-black text-white mb-8 tracking-wider font-['Fredoka_One']">PAUSA</h1>
                 
                 <div class="mb-6">
-                    <span class="text-gray-400 text-xs font-bold uppercase block mb-2">Cámara</span>
-                    <div class="flex gap-2">
-                        <button id="camClassicBtn" class="btn-secondary active flex-1 py-2 rounded-lg text-sm text-white font-semibold transition">Clásica</button>
-                        <button id="camActionBtn" class="btn-secondary flex-1 py-2 rounded-lg text-sm text-white font-semibold transition">Acción</button>
-                        <button id="camTopBtn" class="btn-secondary flex-1 py-2 rounded-lg text-sm text-white font-semibold transition">Cenital</button>
+                    <span class="text-gray-400 text-xs font-bold uppercase block mb-3">Modo de Cámara</span>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button id="camClassicBtn" class="btn-secondary active py-3 rounded-xl text-xs font-bold text-white transition">Clásica</button>
+                        <button id="camFarBtn" class="btn-secondary py-3 rounded-xl text-xs font-bold text-white transition">Panorámica</button>
+                        <button id="camActionBtn" class="btn-secondary py-3 rounded-xl text-xs font-bold text-white transition">Acción</button>
                     </div>
                 </div>
 
                 <div class="mb-8">
-                    <span class="text-gray-400 text-xs font-bold uppercase block mb-2">Gráficos</span>
+                    <span class="text-gray-400 text-xs font-bold uppercase block mb-3">Calidad Gráfica</span>
                     <div class="flex gap-2">
-                        <button id="gfxLowBtn" class="btn-secondary flex-1 py-2 rounded-lg text-sm text-white font-semibold transition">Bajo (Rápido)</button>
-                        <button id="gfxHighBtn" class="btn-secondary active flex-1 py-2 rounded-lg text-sm text-white font-semibold transition">Alto (Sombras)</button>
+                        <button id="gfxLowBtn" class="btn-secondary flex-1 py-3 rounded-xl text-sm text-white font-bold transition">Baja (Sin Sombras)</button>
+                        <button id="gfxHighBtn" class="btn-secondary active flex-1 py-3 rounded-xl text-sm text-white font-bold transition">Alta (Ultra)</button>
                     </div>
                 </div>
 
-                <button id="resumeBtn" class="btn-primary w-full text-white font-bold py-3 rounded-xl transition uppercase tracking-widest mb-3">
+                <button id="resumeBtn" class="btn-primary w-full text-white font-bold py-4 rounded-xl transition uppercase tracking-widest mb-4">
                     Continuar
                 </button>
-                <button id="quitBtn" class="btn-secondary w-full text-white font-bold py-3 rounded-xl transition uppercase tracking-widest border-red-500/30 hover:bg-red-500/20 text-red-400">
+                <button id="quitBtn" class="btn-secondary w-full text-white font-bold py-3 rounded-xl transition uppercase tracking-widest border-red-500/30 hover:bg-red-500/30 text-red-400">
                     Salir al Menú
                 </button>
             </div>
         </div>
 
         <!-- Pantalla de Game Over -->
-        <div id="gameOverScreen" class="flex-1 flex flex-col justify-center items-center interactive hidden bg-red-900/60 backdrop-blur-md">
-            <div class="glass-panel p-8 md:p-12 rounded-3xl max-w-md w-full text-center shadow-2xl border-red-500/30">
-                <h1 class="text-5xl font-black text-red-500 mb-2 drop-shadow-md">¡ATRAPADO!</h1>
-                <p class="text-gray-300 mb-6 text-lg">Cuidado con los obstáculos.</p>
-                <div class="bg-black/50 rounded-xl p-4 mb-8">
-                    <span class="text-gray-400 uppercase text-sm font-bold block mb-1">Comida recolectada</span>
-                    <span id="finalScore" class="text-4xl font-black text-blue-400">0</span>
+        <div id="gameOverScreen" class="flex-1 flex flex-col justify-center items-center interactive hidden bg-red-950/80 backdrop-blur-md">
+            <div class="glass-panel p-8 md:p-12 rounded-3xl max-w-lg w-full text-center shadow-2xl border-red-500/40 mx-4">
+                <h1 class="text-6xl font-black text-red-500 mb-2 drop-shadow-lg font-['Fredoka_One']" style="-webkit-text-stroke: 1px #450a0a;">¡ATRAPADO!</h1>
+                <p class="text-gray-300 mb-8 text-lg font-medium">El cazador te ha alcanzado.</p>
+                
+                <div class="grid grid-cols-2 gap-4 mb-8">
+                    <div class="bg-black/60 rounded-2xl p-4 border border-white/5">
+                        <span class="text-gray-400 uppercase text-xs font-bold block mb-1">Distancia</span>
+                        <span id="finalDistance" class="text-2xl font-bold text-white">0m</span>
+                    </div>
+                    <div class="bg-black/60 rounded-2xl p-4 border border-white/5">
+                        <span class="text-gray-400 uppercase text-xs font-bold block mb-1">Comida</span>
+                        <span id="finalFood" class="text-2xl font-bold text-yellow-400">0</span>
+                    </div>
+                    <div class="col-span-2 bg-gradient-to-br from-gray-900 to-black rounded-2xl p-6 border border-green-500/30 shadow-[0_0_15px_rgba(34,197,94,0.2)]">
+                        <span class="text-green-400 uppercase text-sm font-black tracking-widest block mb-2">PUNTUACIÓN TOTAL</span>
+                        <span id="finalScore" class="text-6xl font-black text-white font-['Fredoka_One'] drop-shadow-md">0</span>
+                    </div>
                 </div>
-                <button id="restartBtn" class="w-full bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white font-bold py-4 rounded-xl shadow-lg transform transition active:scale-95 uppercase tracking-widest text-lg">
+                
+                <button id="restartBtn" class="w-full bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white font-black py-5 rounded-2xl shadow-[0_6px_0_#991b1b] transform transition active:translate-y-2 active:shadow-none uppercase tracking-widest text-xl mb-3">
                     Intentar de nuevo
+                </button>
+                <button id="gameOverQuitBtn" class="btn-secondary w-full text-white font-bold py-3 rounded-xl transition uppercase tracking-widest">
+                    Menú Principal
                 </button>
             </div>
         </div>
     </div>
 
     <script>
-        // Elementos UI
+        // === ELEMENTOS UI ===
         const uiStart = document.getElementById('startScreen');
+        const uiCustomize = document.getElementById('customizeScreen');
         const uiGameOver = document.getElementById('gameOverScreen');
         const uiPause = document.getElementById('pauseScreen');
         const uiHud = document.getElementById('hud');
-        const scoreDisplay = document.getElementById('scoreDisplay');
-        const finalScore = document.getElementById('finalScore');
-        const dangerBar = document.getElementById('dangerBar');
-        const damageOverlay = document.getElementById('damage-overlay');
-        const quitBtn = document.getElementById('quitBtn');
         
-        // Variables Three.js
-        let scene, camera, renderer, dirLight;
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const scoreContainer = document.getElementById('scoreContainer');
+        const dangerBar = document.getElementById('dangerBar');
+        const floatingScoresContainer = document.getElementById('floating-scores-container');
+        
+        // === VARIABLES THREE.JS ===
+        let scene, camera, renderer, dirLight, pointLight;
         let clock;
         
-        // Estado del Juego
-        let gameState = 'START'; // START, PLAYING, PAUSED, GAMEOVER
+        // === ESTADO DEL JUEGO ===
+        let gameState = 'START'; // START, CUSTOMIZE, PLAYING, PAUSED, GAMEOVER
         let score = 0;
+        let foodCount = 0;
         let speed = 0;
-        const maxSpeed = 30; // Un poco más rápido
+        const maxSpeed = 35; // Aún más rápido para la versión Deluxe
         let distanceTraveled = 0;
         
-        // Configuraciones
-        let cameraMode = 'CLASSIC'; // CLASSIC, ACTION, TOP
+        // === CONFIGURACIONES ===
+        let cameraMode = 'CLASSIC'; // CLASSIC, FAR, ACTION
         let highQuality = true;
 
-        // Físicas y Movimiento
-        const laneWidth = 4;
+        // === FÍSICAS Y MOVIMIENTO ===
+        const laneWidth = 4.5; // Carriles un poco más anchos
         let currentLane = 0; // -1, 0, 1
         
-        // Físicas del Jugador (Salto y Deslizamiento)
         let isJumping = false;
         let isSliding = false;
-        let vy = 0; // Velocidad en el eje Y
-        const gravity = 50; 
-        const jumpForce = 18;
+        let vy = 0; 
+        const gravity = 65; 
+        const jumpForce = 22; // Salto más alto para esquivar fogatas
         let slideTimer = 0;
-        const maxSlideTime = 0.8; // Segundos
+        const maxSlideTime = 0.7; 
         
-        // Entidades
-        let playerGroup, playerBody, playerTail, playerLegs = [];
-        let hunterGroup;
+        // === ENTIDADES ===
+        let playerGroup, playerBody, playerTail, playerLegs = [], currentHatMesh = null;
+        let hunterGroup, hunterLegs = [];
         let hunterDistance = 35;
-        const safeHunterDistance = 40;
+        const safeHunterDistance = 45; // Distancia segura aumentada por el zoom
         
-        // Pools y Entorno
+        // === SISTEMA DE PARTÍCULAS ===
+        const particles = [];
+        const maxParticles = 50; // Pool de partículas
+        
+        // === POOLS Y ENTORNO ===
         const activeObstacles = [];
         const activeItems = [];
-        const objectPool = { tree: [], branch: [], trap: [], food: [] };
+        const objectPool = { 
+            tree: [], branch: [], trap: [], 
+            tent: [], campfire: [], // Nuevos obstáculos
+            burger: [], hotdog: [], fries: [] // Nuevos coleccionables
+        };
         let ground;
-        const spawnDistance = 150;
-        let nextSpawnZ = -30;
+        const spawnDistance = 200; // Generar más lejos
+        let nextSpawnZ = -40;
+        const sceneryObjects = []; // Árboles de fondo
+
+        // === PERSONALIZACIÓN DEL MAPACHE ===
+        const skins = [
+            { name: "Clásico", main: 0x888888, dark: 0x222222, light: 0xeeeeee },
+            { name: "Panda Rojo", main: 0xc84b31, dark: 0x2d4263, light: 0xecdbba },
+            { name: "Bandido Nocturno", main: 0x1f2833, dark: 0x0b0c10, light: 0xc5c6c7 },
+            { name: "Albino Místico", main: 0xffffff, dark: 0xffaaaa, light: 0xffffff }
+        ];
         
-        // Materiales Globales
+        const hats = [
+            { name: "Ninguno", id: 'none' },
+            { name: "Gorra", id: 'cap' },
+            { name: "Sombrero de Copa", id: 'tophat' },
+            { name: "Corona", id: 'crown' },
+            { name: "Gorro Invernio", id: 'beanie' }
+        ];
+
+        let currentSkinIdx = 0;
+        let currentHatIdx = 0;
+        
+        // Materiales dinámicos del jugador
+        const playerMats = {
+            main: new THREE.MeshLambertMaterial({ color: skins[0].main }),
+            dark: new THREE.MeshLambertMaterial({ color: skins[0].dark }),
+            light: new THREE.MeshLambertMaterial({ color: skins[0].light })
+        };
+
+        // Paleta Global
         const colors = {
-            bg: 0x081116, fog: 0x081116, ground: 0x112216,
-            treeTrunk: 0x3d2817, treeLeaves: 0x0f331b,
-            bush: 0x144a23, grass: 0x2e5c3a,
-            woodDark: 0x2b1c10, metal: 0x666666,
-            raccoonDark: 0x222222, raccoonLight: 0x888888, raccoonWhite: 0xeeeeee,
-            bag: 0x3b82f6, hunter: 0x8b0000
+            bg: 0x0a0c10, fog: 0x0a0c10, // Noche oscura
+            ground: 0x121a15, path: 0x1c251e,
+            treeTrunk: 0x2d1a10, treeLeaves: 0x0c2415,
+            bush: 0x0f2e1a, grass: 0x1b3a24,
+            woodDark: 0x1f1208, metal: 0x778899,
+            hunter: 0x5c0000,
+            fire: 0xff5500, fireLight: 0xffaa00,
+            tent: [0x1e3a8a, 0x064e3b, 0x7f1d1d], // Colores variados para tiendas
+            burgerBun: 0xd9a05b, burgerMeat: 0x4a2e10, burgerLettuce: 0x4ade80,
+            hotdogBun: 0xe6b981, hotdogMeat: 0x993300, mustard: 0xeab308,
+            friesBox: 0xdc2626, fries: 0xfcd34d
         };
 
         const mats = {
@@ -189,245 +402,478 @@
             bush: new THREE.MeshLambertMaterial({ color: colors.bush, flatShading: true }),
             grass: new THREE.MeshLambertMaterial({ color: colors.grass }),
             wood: new THREE.MeshLambertMaterial({ color: colors.woodDark }),
-            metal: new THREE.MeshStandardMaterial({ color: colors.metal, roughness: 0.4, metalness: 0.8 }),
-            raccoonD: new THREE.MeshLambertMaterial({ color: colors.raccoonDark }),
-            raccoonL: new THREE.MeshLambertMaterial({ color: colors.raccoonLight }),
-            raccoonW: new THREE.MeshLambertMaterial({ color: colors.raccoonWhite }),
-            bag: new THREE.MeshStandardMaterial({ color: colors.bag, roughness: 0.2, metalness: 0.5, emissive: 0x1d4ed8, emissiveIntensity: 0.3 }),
-            hunter: new THREE.MeshLambertMaterial({ color: colors.hunter })
+            metal: new THREE.MeshStandardMaterial({ color: colors.metal, roughness: 0.3, metalness: 0.7 }),
+            hunter: new THREE.MeshLambertMaterial({ color: colors.hunter }),
+            fire: new THREE.MeshBasicMaterial({ color: colors.fire }), // Brillante sin importar luz
+            // Comida
+            bBun: new THREE.MeshLambertMaterial({ color: colors.burgerBun }),
+            bMeat: new THREE.MeshLambertMaterial({ color: colors.burgerMeat }),
+            bLettuce: new THREE.MeshLambertMaterial({ color: colors.burgerLettuce }),
+            hdBun: new THREE.MeshLambertMaterial({ color: colors.hotdogBun }),
+            hdMeat: new THREE.MeshLambertMaterial({ color: colors.hotdogMeat }),
+            mustard: new THREE.MeshLambertMaterial({ color: colors.mustard }),
+            fBox: new THREE.MeshLambertMaterial({ color: colors.friesBox }),
+            fries: new THREE.MeshLambertMaterial({ color: colors.fries })
         };
 
         function init() {
             clock = new THREE.Clock();
 
+            // Escena
             scene = new THREE.Scene();
             scene.background = new THREE.Color(colors.bg);
-            scene.fog = new THREE.Fog(colors.fog, 20, 120);
+            scene.fog = new THREE.Fog(colors.fog, 30, 180);
 
-            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 200);
+            // Cámara
+            camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 300);
             
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+            // Renderizador
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Limitar a 2x para rendimiento
             renderer.shadowMap.enabled = highQuality;
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
             document.body.appendChild(renderer.domElement);
 
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            // Luces (Atardecer/Noche en el bosque)
+            const ambientLight = new THREE.AmbientLight(0x1a2533, 0.6); // Luz azulada tenue
             scene.add(ambientLight);
 
-            dirLight = new THREE.DirectionalLight(0x7da2c4, 1.2);
-            dirLight.position.set(20, 50, 20);
+            dirLight = new THREE.DirectionalLight(0xddeeff, 0.8); // Luz de luna
+            dirLight.position.set(-30, 60, -20);
             dirLight.castShadow = highQuality;
-            dirLight.shadow.camera.left = -30;
-            dirLight.shadow.camera.right = 30;
-            dirLight.shadow.camera.top = 40;
-            dirLight.shadow.camera.bottom = -40;
+            dirLight.shadow.camera.left = -50;
+            dirLight.shadow.camera.right = 50;
+            dirLight.shadow.camera.top = 50;
+            dirLight.shadow.camera.bottom = -50;
             dirLight.shadow.camera.near = 0.1;
-            dirLight.shadow.camera.far = 150;
-            dirLight.shadow.bias = -0.001;
+            dirLight.shadow.camera.far = 200;
+            dirLight.shadow.mapSize.width = 1024;
+            dirLight.shadow.mapSize.height = 1024;
             scene.add(dirLight);
 
-            const groundGeo = new THREE.PlaneGeometry(100, 400);
+            // Suelo procedural detallado
+            const groundGroup = new THREE.Group();
+            
+            const groundGeo = new THREE.PlaneGeometry(200, 600);
             const groundMat = new THREE.MeshLambertMaterial({ color: colors.ground });
             ground = new THREE.Mesh(groundGeo, groundMat);
             ground.rotation.x = -Math.PI / 2;
             ground.receiveShadow = true;
-            scene.add(ground);
+            groundGroup.add(ground);
 
+            // Camino central de tierra
+            const pathGeo = new THREE.PlaneGeometry(laneWidth * 3.5, 600);
+            const pathMat = new THREE.MeshLambertMaterial({ color: colors.path });
+            const path = new THREE.Mesh(pathGeo, pathMat);
+            path.rotation.x = -Math.PI / 2;
+            path.position.y = 0.05; // Ligeramente arriba para evitar z-fighting
+            path.receiveShadow = true;
+            groundGroup.add(path);
+
+            scene.add(groundGroup);
+            // El suelo no se moverá físicamente, moveremos su textura o simplemente usaremos el efecto de cámara
+            // Para simplicidad infinita, dejaremos que el suelo siga a la cámara
+            window.groundPlane = groundGroup;
+
+            // Inicializar Entidades y Entorno
             createPlayer();
             createHunter();
+            initParticles();
             
-            // Generar un bosque denso al inicio
-            for(let i = 0; i < 120; i++) spawnSceneryTree();
+            // Generar bosque ambiental enorme
+            for(let i = 0; i < 200; i++) spawnSceneryObject();
 
             setupEventListeners();
             animate();
         }
 
         function createPlayer() {
-            playerGroup = new THREE.Group();
+            if (playerGroup) scene.remove(playerGroup);
             
-            // Cuerpo contenedor (para facilitar rotaciones/escalas generales)
+            playerGroup = new THREE.Group();
             playerBody = new THREE.Group();
             playerGroup.add(playerBody);
             
-            const bodyGeo = new THREE.BoxGeometry(1.2, 1, 2);
-            const bodyMesh = new THREE.Mesh(bodyGeo, mats.raccoonL);
-            bodyMesh.position.y = 1.2;
+            // Cuerpo
+            const bodyGeo = new THREE.BoxGeometry(1.2, 1, 2.2);
+            const bodyMesh = new THREE.Mesh(bodyGeo, playerMats.main);
+            bodyMesh.position.y = 1.3;
             bodyMesh.castShadow = true;
             playerBody.add(bodyMesh);
 
+            // Cabeza
             const headGroup = new THREE.Group();
-            headGroup.position.set(0, 1.5, -1.2);
-            const headBase = new THREE.Mesh(new THREE.BoxGeometry(1, 0.9, 1), mats.raccoonL); headBase.castShadow = true;
-            const snout = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.4, 0.6), mats.raccoonW); snout.position.set(0, -0.25, -0.7);
-            const nose = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.15, 0.2), mats.raccoonD); nose.position.set(0, -0.2, -1.05);
-            const mask = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.35, 0.5), mats.raccoonD); mask.position.set(0, 0.1, -0.3);
-            const eyeGeo = new THREE.BoxGeometry(0.15, 0.15, 0.1);
-            const eyeR = new THREE.Mesh(eyeGeo, mats.raccoonW); eyeR.position.set(0.25, 0.1, -0.55);
-            const eyeL = eyeR.clone(); eyeL.position.set(-0.25, 0.1, -0.55);
-            const earGeo = new THREE.ConeGeometry(0.25, 0.5, 4);
-            const earR = new THREE.Mesh(earGeo, mats.raccoonD); earR.position.set(0.35, 0.6, 0); earR.rotation.z = -0.2;
-            const earL = earR.clone(); earL.position.set(-0.35, 0.6, 0); earL.rotation.z = 0.2;
+            headGroup.position.set(0, 1.6, -1.3);
             
-            headGroup.add(headBase, snout, nose, mask, eyeR, eyeL, earR, earL);
+            const headBase = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.9, 1.1), playerMats.main); 
+            headBase.castShadow = true;
+            const snout = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.4, 0.6), playerMats.light); 
+            snout.position.set(0, -0.25, -0.8);
+            const nose = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.15, 0.2), playerMats.dark); 
+            nose.position.set(0, -0.2, -1.15);
+            
+            // Máscara característica
+            const mask = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.35, 0.6), playerMats.dark); 
+            mask.position.set(0, 0.1, -0.3);
+            
+            // Ojos
+            const eyeGeo = new THREE.BoxGeometry(0.15, 0.15, 0.1);
+            const eyeR = new THREE.Mesh(eyeGeo, playerMats.light); eyeR.position.set(0.3, 0.1, -0.65);
+            const eyeL = eyeR.clone(); eyeL.position.set(-0.3, 0.1, -0.65);
+            const pupilR = new THREE.Mesh(new THREE.BoxGeometry(0.08,0.08,0.15), playerMats.dark); pupilR.position.set(0.3, 0.1, -0.68);
+            const pupilL = pupilR.clone(); pupilL.position.set(-0.3, 0.1, -0.68);
+
+            // Orejas
+            const earGeo = new THREE.ConeGeometry(0.25, 0.5, 4);
+            const earR = new THREE.Mesh(earGeo, playerMats.dark); earR.position.set(0.4, 0.6, 0); earR.rotation.z = -0.3;
+            const earL = earR.clone(); earL.position.set(-0.4, 0.6, 0); earL.rotation.z = 0.3;
+            
+            headGroup.add(headBase, snout, nose, mask, eyeR, eyeL, pupilR, pupilL, earR, earL);
             playerBody.add(headGroup);
 
+            // Cola (Articulada y anillada)
             playerTail = new THREE.Group();
-            playerTail.position.set(0, 1.4, 1);
-            const tailMesh = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 1.8), mats.raccoonD);
-            tailMesh.position.z = 0.9; tailMesh.castShadow = true;
-            const stripeGeo = new THREE.BoxGeometry(0.65, 0.65, 0.3);
-            const s1 = new THREE.Mesh(stripeGeo, mats.raccoonL); s1.position.z = 0.5;
-            const s2 = new THREE.Mesh(stripeGeo, mats.raccoonL); s2.position.z = 1.1;
-            const s3 = new THREE.Mesh(stripeGeo, mats.raccoonL); s3.position.z = 1.7;
-            tailMesh.add(s1, s2, s3);
-            playerTail.add(tailMesh);
-            playerTail.rotation.x = Math.PI / 6;
+            playerTail.position.set(0, 1.5, 1.2);
+            
+            const tailBase = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 2.2), playerMats.dark);
+            tailBase.position.z = 1.1; tailBase.castShadow = true;
+            
+            const stripeGeo = new THREE.BoxGeometry(0.75, 0.75, 0.35);
+            for(let i=0; i<4; i++) {
+                const stripe = new THREE.Mesh(stripeGeo, playerMats.main);
+                stripe.position.z = 0.4 + (i * 0.5);
+                tailBase.add(stripe);
+            }
+            playerTail.add(tailBase);
+            playerTail.rotation.x = Math.PI / 5;
             playerBody.add(playerTail);
 
-            const legGeo = new THREE.BoxGeometry(0.3, 0.8, 0.3);
-            const legPositions = [ [-0.4, 0.4, -0.6], [0.4, 0.4, -0.6], [-0.4, 0.4, 0.6], [0.4, 0.4, 0.6] ];
+            // Patas
+            playerLegs = [];
+            const legGeo = new THREE.BoxGeometry(0.3, 0.9, 0.3);
+            const legPositions = [ [-0.45, 0.45, -0.7], [0.45, 0.45, -0.7], [-0.45, 0.45, 0.7], [0.45, 0.45, 0.7] ];
             legPositions.forEach(pos => {
                 const legGroup = new THREE.Group();
-                legGroup.position.set(pos[0], pos[1] + 0.4, pos[2]);
-                const legMesh = new THREE.Mesh(legGeo, mats.raccoonD);
-                legMesh.position.y = -0.4; legMesh.castShadow = true;
+                legGroup.position.set(pos[0], pos[1] + 0.45, pos[2]);
+                const legMesh = new THREE.Mesh(legGeo, playerMats.dark);
+                legMesh.position.y = -0.45; legMesh.castShadow = true;
                 legGroup.add(legMesh);
                 playerBody.add(legGroup);
                 playerLegs.push(legGroup);
             });
 
             scene.add(playerGroup);
+            updatePlayerAppearance(); // Aplica sombreros
+        }
+
+        function createHatModel(hatId) {
+            const hatGroup = new THREE.Group();
+            if (hatId === 'none') return hatGroup;
+
+            let mainMesh;
+            const darkMat = new THREE.MeshLambertMaterial({ color: 0x111111 });
+            const redMat = new THREE.MeshLambertMaterial({ color: 0xcc0000 });
+            const goldMat = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.8, roughness: 0.2 });
+
+            if (hatId === 'cap') {
+                mainMesh = new THREE.Mesh(new THREE.HemisphereGeometry(0.55, 0.55, 0.4, 16), redMat);
+                const visor = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.1, 0.6), redMat);
+                visor.position.set(0, -0.1, -0.4);
+                mainMesh.add(visor);
+                hatGroup.position.y = 0.5;
+            } else if (hatId === 'tophat') {
+                mainMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.8, 16), darkMat);
+                const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 0.1, 16), darkMat);
+                brim.position.y = -0.4;
+                const band = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.2, 16), redMat);
+                band.position.y = -0.25;
+                mainMesh.add(brim, band);
+                hatGroup.position.y = 0.8;
+            } else if (hatId === 'crown') {
+                mainMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.4, 0.5, 8), goldMat);
+                hatGroup.position.y = 0.7;
+            } else if (hatId === 'beanie') {
+                mainMesh = new THREE.Mesh(new THREE.SphereGeometry(0.55, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0x3b82f6 }));
+                const pompom = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 8), new THREE.MeshLambertMaterial({ color: 0xffffff }));
+                pompom.position.y = 0.6;
+                mainMesh.add(pompom);
+                hatGroup.position.y = 0.4;
+            }
+
+            if (mainMesh) {
+                mainMesh.castShadow = true;
+                hatGroup.add(mainMesh);
+            }
+            return hatGroup;
+        }
+
+        function updatePlayerAppearance() {
+            // Actualizar colores
+            const skin = skins[currentSkinIdx];
+            playerMats.main.color.setHex(skin.main);
+            playerMats.dark.color.setHex(skin.dark);
+            playerMats.light.color.setHex(skin.light);
+
+            // Actualizar Gorro
+            const head = playerBody.children.find(c => c.children.length > 5); // Identificar la cabeza
+            if (head) {
+                if (currentHatMesh) head.remove(currentHatMesh);
+                currentHatMesh = createHatModel(hats[currentHatIdx].id);
+                head.add(currentHatMesh);
+            }
         }
 
         function createHunter() {
             hunterGroup = new THREE.Group();
-            const body = new THREE.Mesh(new THREE.BoxGeometry(2, 3.5, 1.5), mats.hunter);
-            body.position.y = 1.75; body.castShadow = true;
-            const head = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.2, 1.2), mats.raccoonD);
-            head.position.y = 4.1;
-            const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-            const eyeGeo = new THREE.BoxGeometry(0.3, 0.15, 0.1);
-            const eyeR = new THREE.Mesh(eyeGeo, eyeMat); eyeR.position.set(0.3, 4.2, -0.65);
-            const eyeL = new THREE.Mesh(eyeGeo, eyeMat); eyeL.position.set(-0.3, 4.2, -0.65);
+            const body = new THREE.Mesh(new THREE.BoxGeometry(2.5, 3.5, 1.8), mats.hunter);
+            body.position.y = 2.5; body.castShadow = true;
             
-            hunterGroup.add(body, head, eyeR, eyeL);
+            const head = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.4, 1.4), new THREE.MeshLambertMaterial({color: 0xffccaa})); // Piel humana
+            head.position.y = 5.0;
+            
+            // Sombrero de cazador (Trapper hat)
+            const hat = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.6, 1.6), mats.wood);
+            hat.position.y = 0.8;
+            head.add(hat);
+
+            // Ojos enojados
+            const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+            const eyeR = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.15, 0.1), eyeMat); eyeR.position.set(0.3, 0.1, -0.75); eyeR.rotation.z = -0.2;
+            const eyeL = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.15, 0.1), eyeMat); eyeL.position.set(-0.3, 0.1, -0.75); eyeL.rotation.z = 0.2;
+            head.add(eyeR, eyeL);
+            
+            // Piernas (Para animarlas)
+            const legGeo = new THREE.BoxGeometry(0.8, 1.5, 0.8);
+            hunterLegs = [];
+            for(let i=0; i<2; i++) {
+                const leg = new THREE.Group();
+                leg.position.set(i===0 ? -0.7 : 0.7, 1.5, 0);
+                const legM = new THREE.Mesh(legGeo, new THREE.MeshLambertMaterial({color: 0x222222}));
+                legM.position.y = -0.75; legM.castShadow = true;
+                leg.add(legM);
+                hunterGroup.add(leg);
+                hunterLegs.push(leg);
+            }
+
+            hunterGroup.add(body, head);
             hunterGroup.position.z = hunterDistance;
             scene.add(hunterGroup);
         }
 
+        // OBSTÁCULOS
         function createTree() {
             const group = new THREE.Group();
-            const trunkH = 2 + Math.random() * 2;
-            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.7, trunkH, 5), mats.trunk);
+            const trunkH = 3 + Math.random() * 3;
+            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.9, trunkH, 6), mats.trunk);
             trunk.position.y = trunkH / 2; trunk.castShadow = true;
             group.add(trunk);
             
-            let yOffset = trunkH * 0.8;
+            let yOffset = trunkH * 0.7;
             for(let i=0; i<3; i++) {
-                const leaves = new THREE.Mesh(new THREE.ConeGeometry(2.5 - i*0.5, 3, 5), mats.leaves);
+                const leaves = new THREE.Mesh(new THREE.ConeGeometry(3 - i*0.6, 3.5, 6), mats.leaves);
                 leaves.position.y = yOffset + 1.5; leaves.castShadow = true;
+                
+                // Rotación aleatoria para que no se vean todos iguales
+                leaves.rotation.y = Math.random() * Math.PI;
                 group.add(leaves);
-                yOffset += 1.8;
+                yOffset += 2.0;
             }
-            group.userData = { type: 'tree', radius: 1, active: true };
+            group.userData = { type: 'tree', radius: 1.2, active: true };
             return group;
         }
 
+        function createTent() {
+            const group = new THREE.Group();
+            
+            // Tienda tipo canadiense (Prisma)
+            const geo = new THREE.CylinderGeometry(2.5, 2.5, 5, 3);
+            
+            // Color aleatorio para la tienda
+            const tentColor = colors.tent[Math.floor(Math.random() * colors.tent.length)];
+            const tentMat = new THREE.MeshLambertMaterial({ color: tentColor, flatShading: true });
+            
+            const tent = new THREE.Mesh(geo, tentMat);
+            // Rotar para que parezca una tienda de campaña
+            tent.rotation.x = Math.PI / 2;
+            tent.rotation.z = Math.PI / 2;
+            tent.position.y = 1.2;
+            tent.castShadow = true;
+            group.add(tent);
+
+            // Postes de madera en los extremos
+            const poleGeo = new THREE.CylinderGeometry(0.1, 0.1, 3.5, 4);
+            const p1 = new THREE.Mesh(poleGeo, mats.wood); p1.position.set(0, 1.75, 2.5);
+            const p2 = new THREE.Mesh(poleGeo, mats.wood); p2.position.set(0, 1.75, -2.5);
+            group.add(p1, p2);
+
+            // Ancha, bloquea carril, requiere moverse
+            group.userData = { type: 'tent', radius: 1.8, active: true };
+            return group;
+        }
+
+        function createCampfire() {
+            const group = new THREE.Group();
+            
+            // Piedras alrededor
+            for(let i=0; i<8; i++) {
+                const stone = new THREE.Mesh(new THREE.DodecahedronGeometry(0.3), mats.metal);
+                const angle = (i / 8) * Math.PI * 2;
+                stone.position.set(Math.cos(angle)*1.2, 0.1, Math.sin(angle)*1.2);
+                group.add(stone);
+            }
+
+            // Troncos
+            const logGeo = new THREE.CylinderGeometry(0.2, 0.2, 1.8, 5);
+            for(let i=0; i<3; i++) {
+                const log = new THREE.Mesh(logGeo, mats.trunk);
+                log.rotation.x = Math.PI / 2;
+                log.rotation.z = (i / 3) * Math.PI;
+                log.position.y = 0.2;
+                group.add(log);
+            }
+
+            // Fuego (Geometría principal)
+            const fireGeo = new THREE.ConeGeometry(0.6, 1.5, 4);
+            const fire = new THREE.Mesh(fireGeo, mats.fire);
+            fire.position.y = 1.0;
+            group.add(fire);
+            group.userData.fireMesh = fire; // Guardar referencia para animarlo
+
+            // Luz de la fogata
+            const light = new THREE.PointLight(colors.fireLight, 1, 15);
+            light.position.y = 1.5;
+            group.add(light);
+            group.userData.light = light;
+
+            // Requiere salto (Hitbox ancha pero baja)
+            group.userData = { type: 'campfire', radius: 1.5, active: true };
+            return group;
+        }
+
+        function createHamburger() {
+            const group = new THREE.Group();
+            const s = 0.7; // Escala general
+            
+            // Pan inferior
+            const bunB = new THREE.Mesh(new THREE.CylinderGeometry(1*s, 1*s, 0.4*s, 12), mats.bBun);
+            bunB.position.y = 0.2*s;
+            // Carne
+            const meat = new THREE.Mesh(new THREE.CylinderGeometry(1.05*s, 1.05*s, 0.3*s, 12), mats.bMeat);
+            meat.position.y = 0.6*s;
+            // Lechuga (Ligeramente más grande y desordenada)
+            const lettuce = new THREE.Mesh(new THREE.CylinderGeometry(1.15*s, 1.15*s, 0.1*s, 8), mats.bLettuce);
+            lettuce.position.y = 0.85*s;
+            lettuce.rotation.y = Math.PI/4;
+            // Pan Superior
+            const bunT = new THREE.Mesh(new THREE.SphereGeometry(1*s, 12, 8, 0, Math.PI*2, 0, Math.PI/2), mats.bBun);
+            bunT.position.y = 0.9*s;
+            
+            group.add(bunB, meat, lettuce, bunT);
+            
+            // Rotar un poco para que se vea mejor de frente
+            group.rotation.x = Math.PI/8;
+            group.scale.setScalar(1.2);
+            group.userData = { type: 'burger', radius: 1.0, active: true, points: 30, baseRot: Math.random()*Math.PI };
+            return group;
+        }
+
+        function createHotdog() {
+            const group = new THREE.Group();
+            const s = 0.6;
+            
+            // Pan
+            const bun = new THREE.Mesh(new THREE.BoxGeometry(1.5*s, 1*s, 3.5*s), mats.hdBun);
+            bun.position.y = 0.5*s;
+            
+            // Salchicha
+            const sausage = new THREE.Mesh(new THREE.CylinderGeometry(0.4*s, 0.4*s, 3.8*s, 8), mats.hdMeat);
+            sausage.rotation.x = Math.PI/2;
+            sausage.position.y = 0.8*s;
+            
+            // Mostaza (Zigzag simple)
+            const mustard = new THREE.Mesh(new THREE.BoxGeometry(0.2*s, 0.2*s, 3.2*s), mats.mustard);
+            mustard.position.y = 1.1*s;
+
+            group.add(bun, sausage, mustard);
+            group.scale.setScalar(1.2);
+            group.userData = { type: 'hotdog', radius: 1.0, active: true, points: 20, baseRot: Math.random()*Math.PI };
+            return group;
+        }
+
+        function createFries() {
+            const group = new THREE.Group();
+            const s = 0.8;
+            
+            // Caja roja
+            const box = new THREE.Mesh(new THREE.BoxGeometry(1.5*s, 2*s, 0.8*s), mats.fBox);
+            box.position.y = 1*s;
+            
+            // Papas (Múltiples cilindros/cajas amarillas)
+            for(let i=0; i<8; i++) {
+                const fry = new THREE.Mesh(new THREE.BoxGeometry(0.15*s, 1.5*s, 0.15*s), mats.fries);
+                fry.position.set(
+                    (Math.random()-0.5) * 1.0 * s,
+                    1.8*s + Math.random()*0.5*s,
+                    (Math.random()-0.5) * 0.4 * s
+                );
+                fry.rotation.x = (Math.random()-0.5)*0.5;
+                fry.rotation.z = (Math.random()-0.5)*0.5;
+                group.add(fry);
+            }
+            
+            group.add(box);
+            group.scale.setScalar(1.2);
+            group.userData = { type: 'fries', radius: 1.0, active: true, points: 10, baseRot: Math.random()*Math.PI };
+            return group;
+        }
+
+        // OBJETOS AMBIENTALES
         function createBush() {
             const group = new THREE.Group();
-            const geo = new THREE.DodecahedronGeometry(1 + Math.random() * 0.5);
-            const bush1 = new THREE.Mesh(geo, mats.bush);
-            bush1.position.y = 0.5; bush1.castShadow = true;
-            const bush2 = new THREE.Mesh(geo, mats.bush);
-            bush2.position.set(0.8, 0.3, 0.5); bush2.scale.setScalar(0.7); bush2.castShadow = true;
-            const bush3 = new THREE.Mesh(geo, mats.bush);
-            bush3.position.set(-0.8, 0.4, -0.2); bush3.scale.setScalar(0.8); bush3.castShadow = true;
+            const geo = new THREE.DodecahedronGeometry(1.5 + Math.random());
+            const bush1 = new THREE.Mesh(geo, mats.bush); bush1.position.y = 0.8; bush1.castShadow = true;
+            const bush2 = new THREE.Mesh(geo, mats.bush); bush2.position.set(1.2, 0.5, 0.8); bush2.scale.setScalar(0.7);
+            const bush3 = new THREE.Mesh(geo, mats.bush); bush3.position.set(-1.2, 0.6, -0.5); bush3.scale.setScalar(0.8);
             group.add(bush1, bush2, bush3);
             return group;
         }
 
         function createGrass() {
             const group = new THREE.Group();
-            const geo = new THREE.ConeGeometry(0.1, 0.8, 3);
-            for(let i=0; i<5; i++) {
+            const geo = new THREE.ConeGeometry(0.15, 1.2, 3);
+            for(let i=0; i<8; i++) {
                 const blade = new THREE.Mesh(geo, mats.grass);
-                blade.position.set((Math.random()-0.5), 0.4, (Math.random()-0.5));
-                blade.rotation.x = (Math.random()-0.5)*0.5;
-                blade.rotation.z = (Math.random()-0.5)*0.5;
+                blade.position.set((Math.random()-0.5)*2, 0.6, (Math.random()-0.5)*2);
+                blade.rotation.x = (Math.random()-0.5)*0.6;
+                blade.rotation.z = (Math.random()-0.5)*0.6;
                 group.add(blade);
             }
             return group;
         }
 
-        function createBranch() {
-            // Rama alta: Requiere deslizarse
-            const group = new THREE.Group();
-            // Dos soportes a los lados
-            const p1 = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 2.5, 4), mats.trunk);
-            p1.position.set(-1.8, 1.25, 0); p1.castShadow = true;
-            const p2 = p1.clone(); p2.position.set(1.8, 1.25, 0);
-            
-            // Tronco horizontal flotante (hitbox real)
-            const logH = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 4, 6), mats.wood);
-            logH.rotation.z = Math.PI / 2;
-            logH.position.y = 2.2; logH.castShadow = true;
-            
-            group.add(p1, p2, logH);
-            group.userData = { type: 'branch', radius: 0.8, active: true }; // Hitbox más pequeña
-            return group;
-        }
-
-        function createTrap() {
-            // Trampa de picos en el suelo: Requiere saltar
-            const group = new THREE.Group();
-            const base = new THREE.Mesh(new THREE.BoxGeometry(3, 0.2, 1.5), mats.wood);
-            base.position.y = 0.1; base.castShadow = true;
-            
-            for(let i=0; i<3; i++) {
-                const spike = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.8, 4), mats.metal);
-                spike.position.set(-1 + i, 0.5, 0); spike.castShadow = true;
-                group.add(spike);
-            }
-            group.add(base);
-            group.userData = { type: 'trap', radius: 1.2, active: true };
-            return group;
-        }
-
-        function createFoodBag() {
-            const group = new THREE.Group();
-            const bag = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.6, 0.8, 6), mats.bag);
-            bag.position.y = 0.4; bag.castShadow = true;
-            const knot = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.4, 5), mats.bag);
-            knot.position.y = 1.0;
-            group.add(bag, knot);
-            group.userData = { type: 'food', radius: 0.8, active: true, baseRot: Math.random() * Math.PI };
-            return group;
-        }
-
-        const sceneryTrees = [];
-        function spawnSceneryTree() {
+        function spawnSceneryObject() {
             let item;
             const rand = Math.random();
-            // Elegir aleatoriamente qué tipo de vegetación generar a los lados
-            if (rand < 0.35) item = createTree();
+            if (rand < 0.4) item = createTree();
             else if (rand < 0.7) item = createBush();
             else item = createGrass();
             
             const side = Math.random() > 0.5 ? 1 : -1;
-            // Posicionar fuera de los 3 carriles centrales (carriles: -4, 0, 4)
-            item.position.x = side * (7 + Math.random() * 25);
-            item.position.z = -Math.random() * 250 + 50;
+            item.position.x = side * (8 + Math.random() * 30); // Fuera de la pista
+            item.position.z = -Math.random() * 400 + 50;
             scene.add(item);
-            sceneryTrees.push(item);
+            sceneryObjects.push(item);
         }
 
         function getFromPool(type, createFunc) {
             let item = objectPool[type].find(o => !o.userData.active);
             if (!item) {
                 item = createFunc();
+                // Si es fogata, guardar sus referencias internas
+                if (type === 'campfire') {
+                    item.userData.type = 'campfire';
+                }
                 objectPool[type].push(item);
                 scene.add(item);
             }
@@ -438,29 +884,110 @@
 
         function spawnRow() {
             const lanes = [-1, 0, 1].sort(() => Math.random() - 0.5);
-            const numObstacles = Math.random() > 0.4 ? 2 : 1; 
+            // Dificultad progresiva basada en la puntuación
+            const density = Math.min(0.4 + (score / 5000), 0.8); 
+            const numObstacles = Math.random() < density ? (Math.random() > 0.6 ? 2 : 1) : 1; 
             
             for(let i=0; i<3; i++) {
                 const laneIdx = lanes[i];
                 const xPos = laneIdx * laneWidth;
 
                 if (i < numObstacles) {
-                    // Elegir tipo de obstáculo al azar y obtener del Pool
                     const rand = Math.random();
                     let obs;
-                    if (rand < 0.5) obs = getFromPool('tree', createTree);
-                    else if (rand < 0.75) obs = getFromPool('branch', createBranch);
-                    else obs = getFromPool('trap', createTrap);
+                    if (rand < 0.4) obs = getFromPool('tree', createTree);
+                    else if (rand < 0.7) obs = getFromPool('tent', createTent);
+                    else obs = getFromPool('campfire', createCampfire);
                     
                     obs.position.set(xPos, 0, nextSpawnZ);
                     if (!activeObstacles.includes(obs)) activeObstacles.push(obs);
-                } else if (Math.random() > 0.3) {
-                    const food = getFromPool('food', createFoodBag);
+                } else if (Math.random() > 0.4) {
+                    // Generar comida (Más probable papas, menos hamburguesas)
+                    const foodRand = Math.random();
+                    let food;
+                    if(foodRand < 0.2) food = getFromPool('burger', createHamburger);
+                    else if(foodRand < 0.5) food = getFromPool('hotdog', createHotdog);
+                    else food = getFromPool('fries', createFries);
+
                     food.position.set(xPos, 0, nextSpawnZ);
                     if (!activeItems.includes(food)) activeItems.push(food);
                 }
             }
-            nextSpawnZ -= (15 + Math.random() * 12); // Más espacio entre obstáculos para reaccionar
+            // Espaciado dinámico basado en velocidad
+            nextSpawnZ -= (20 + Math.random() * 15 + (speed * 0.5)); 
+        }
+
+        function initParticles() {
+            const pGeo = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+            const pMat = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
+            for(let i=0; i<maxParticles; i++) {
+                const p = new THREE.Mesh(pGeo, pMat);
+                p.visible = false;
+                p.userData = { active: false, life: 0, vx:0, vy:0, vz:0 };
+                scene.add(p);
+                particles.push(p);
+            }
+        }
+
+        function emitParticles(x, y, z, colorHex, count) {
+            let emitted = 0;
+            for(let i=0; i<particles.length; i++) {
+                if(emitted >= count) break;
+                const p = particles[i];
+                if(!p.userData.active) {
+                    p.material.color.setHex(colorHex);
+                    p.position.set(x + (Math.random()-0.5), y + Math.random(), z + (Math.random()-0.5));
+                    p.userData.active = true;
+                    p.userData.life = 1.0;
+                    p.userData.vx = (Math.random()-0.5) * 5;
+                    p.userData.vy = Math.random() * 10 + 5;
+                    p.userData.vz = (Math.random()-0.5) * 5;
+                    p.scale.setScalar(1 + Math.random());
+                    p.visible = true;
+                    emitted++;
+                }
+            }
+        }
+
+        function updateParticles(delta) {
+            particles.forEach(p => {
+                if(p.userData.active) {
+                    p.userData.life -= delta * 1.5; // Tiempo de vida
+                    if(p.userData.life <= 0) {
+                        p.userData.active = false;
+                        p.visible = false;
+                    } else {
+                        // Movimiento parabólico (gravedad suave)
+                        p.userData.vy -= 15 * delta; 
+                        p.position.x += p.userData.vx * delta;
+                        p.position.y += p.userData.vy * delta;
+                        p.position.z += p.userData.vz * delta;
+                        p.scale.setScalar(p.userData.life); // Se encogen al morir
+                    }
+                }
+            });
+        }
+
+        function showFloatingScore(points, x, y) {
+            const el = document.createElement('div');
+            el.className = 'floating-score';
+            el.innerText = `+${points}`;
+            // Proyección 3D a 2D muy básica aproximada basada en el ancho de pantalla
+            // (Para un efecto perfecto se usaría THREE.Vector3.project)
+            const screenX = window.innerWidth / 2 + (x * 30); 
+            const screenY = window.innerHeight / 2 - 100;
+            
+            el.style.left = `${screenX}px`;
+            el.style.top = `${screenY}px`;
+            
+            floatingScoresContainer.appendChild(el);
+            
+            // Efecto CSS en el contador principal
+            scoreDisplay.classList.remove('score-pulse');
+            void scoreDisplay.offsetWidth; // Trigger reflow
+            scoreDisplay.classList.add('score-pulse');
+
+            setTimeout(() => { el.remove(); }, 1000);
         }
 
         let touchStartX = 0;
@@ -469,25 +996,61 @@
         function setupEventListeners() {
             window.addEventListener('resize', onWindowResize);
             
-            // Botones de UI
+            // Navegación UI
             document.getElementById('startBtn').addEventListener('click', startGame);
             document.getElementById('restartBtn').addEventListener('click', startGame);
             document.getElementById('pauseBtn').addEventListener('click', togglePause);
             document.getElementById('resumeBtn').addEventListener('click', togglePause);
-            quitBtn.addEventListener('click', quitToMenu);
+            document.getElementById('quitBtn').addEventListener('click', quitToMenu);
+            document.getElementById('gameOverQuitBtn').addEventListener('click', quitToMenu);
+            
+            document.getElementById('openCustomizeBtn').addEventListener('click', () => {
+                gameState = 'CUSTOMIZE';
+                uiStart.classList.add('hidden');
+                uiCustomize.classList.remove('hidden');
+            });
+            document.getElementById('closeCustomizeBtn').addEventListener('click', () => {
+                gameState = 'START';
+                uiCustomize.classList.add('hidden');
+                uiStart.classList.remove('hidden');
+                // Resetear cámara
+                camera.position.set(0, 3, 12);
+                camera.lookAt(0, 2, 0);
+            });
 
-            // Ajustes de Cámara
+            // Lógica Menú Personalización
+            document.getElementById('skinNext').addEventListener('click', () => {
+                currentSkinIdx = (currentSkinIdx + 1) % skins.length;
+                document.getElementById('skinLabel').innerText = skins[currentSkinIdx].name;
+                updatePlayerAppearance();
+            });
+            document.getElementById('skinPrev').addEventListener('click', () => {
+                currentSkinIdx = (currentSkinIdx - 1 + skins.length) % skins.length;
+                document.getElementById('skinLabel').innerText = skins[currentSkinIdx].name;
+                updatePlayerAppearance();
+            });
+            document.getElementById('hatNext').addEventListener('click', () => {
+                currentHatIdx = (currentHatIdx + 1) % hats.length;
+                document.getElementById('hatLabel').innerText = hats[currentHatIdx].name;
+                updatePlayerAppearance();
+            });
+            document.getElementById('hatPrev').addEventListener('click', () => {
+                currentHatIdx = (currentHatIdx - 1 + hats.length) % hats.length;
+                document.getElementById('hatLabel').innerText = hats[currentHatIdx].name;
+                updatePlayerAppearance();
+            });
+
+            // Ajustes
             document.querySelectorAll('[id^="cam"]').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     document.querySelectorAll('[id^="cam"]').forEach(b => b.classList.remove('active'));
                     e.target.classList.add('active');
                     if(e.target.id === 'camClassicBtn') cameraMode = 'CLASSIC';
+                    if(e.target.id === 'camFarBtn') cameraMode = 'FAR';
                     if(e.target.id === 'camActionBtn') cameraMode = 'ACTION';
-                    if(e.target.id === 'camTopBtn') cameraMode = 'TOP';
                 });
             });
 
-            // Ajustes de Gráficos
             document.getElementById('gfxLowBtn').addEventListener('click', (e) => setQuality(false, e.target));
             document.getElementById('gfxHighBtn').addEventListener('click', (e) => setQuality(true, e.target));
             
@@ -504,34 +1067,25 @@
                 else if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') slide();
             });
 
-            // Táctil (Swipes unificados y optimizados para móviles)
+            // Táctil
             const touchZone = document.getElementById('touch-zone');
             touchZone.addEventListener('touchstart', e => {
                 touchStartX = e.changedTouches[0].screenX;
                 touchStartY = e.changedTouches[0].screenY;
             }, { passive: false });
 
-            // Bloquear scroll de la página y gestos por defecto del navegador (pull to refresh)
-            touchZone.addEventListener('touchmove', e => {
-                e.preventDefault();
-            }, { passive: false });
+            touchZone.addEventListener('touchmove', e => { e.preventDefault(); }, { passive: false });
 
             touchZone.addEventListener('touchend', e => {
                 if (gameState !== 'PLAYING') return;
                 
-                let touchEndX = e.changedTouches[0].screenX;
-                let touchEndY = e.changedTouches[0].screenY;
-                let dx = touchEndX - touchStartX;
-                let dy = touchEndY - touchStartY;
+                let dx = e.changedTouches[0].screenX - touchStartX;
+                let dy = e.changedTouches[0].screenY - touchStartY;
                 
-                // Umbral mínimo de movimiento para considerarlo swipe
                 if (Math.abs(dx) < 30 && Math.abs(dy) < 30) return; 
                 
-                if (Math.abs(dx) > Math.abs(dy)) {
-                    // Horizontal
-                    moveLateral(dx > 0 ? 1 : -1);
-                } else {
-                    // Vertical
+                if (Math.abs(dx) > Math.abs(dy)) moveLateral(dx > 0 ? 1 : -1);
+                else {
                     if (dy < 0) jump();
                     else slide();
                 }
@@ -555,9 +1109,8 @@
             if (!isJumping && !isSliding) {
                 isSliding = true;
                 slideTimer = maxSlideTime;
-                // Aplastar el modelo visualmente
-                playerBody.scale.set(1.2, 0.4, 1.2);
-                playerBody.position.y = 0.5; // Bajar para que toque el suelo aplastado
+                playerBody.scale.set(1.3, 0.35, 1.3);
+                playerBody.position.y = 0.4;
             }
         }
 
@@ -569,13 +1122,7 @@
             
             renderer.shadowMap.enabled = highQuality;
             dirLight.castShadow = highQuality;
-            
-            scene.traverse(child => {
-                if (child.isMesh) {
-                    child.castShadow = highQuality;
-                    child.receiveShadow = highQuality;
-                }
-            });
+            scene.traverse(child => { if (child.isMesh) child.castShadow = child.receiveShadow = highQuality; });
         }
 
         function togglePause() {
@@ -596,35 +1143,28 @@
             uiGameOver.classList.add('hidden');
             uiHud.classList.add('hidden');
             uiStart.classList.remove('hidden');
-            damageOverlay.style.opacity = '0';
             
-            // Ocultar objetos y regresarlos al pool
             activeObstacles.forEach(o => { o.userData.active = false; o.visible = false; });
             activeItems.forEach(i => { i.userData.active = false; i.visible = false; });
             activeObstacles.length = 0;
             activeItems.length = 0;
             
-            // Reposicionar inicio
             playerGroup.position.set(0, 0, 0);
-            camera.position.set(0, 2, -10);
+            window.groundPlane.position.z = 0;
         }
 
         function startGame() {
-            // Limpiar y ocultar elementos anteriores
             activeObstacles.forEach(o => { o.userData.active = false; o.visible = false; });
             activeItems.forEach(i => { i.userData.active = false; i.visible = false; });
             activeObstacles.length = 0;
             activeItems.length = 0;
             
-            score = 0;
+            score = 0; distanceTraveled = 0; foodCount = 0;
             scoreDisplay.innerText = score;
-            speed = 8;
+            speed = 12; // Inicio un poco más rápido
             currentLane = 0;
             
-            // Reiniciar Físicas
-            isJumping = false;
-            isSliding = false;
-            vy = 0;
+            isJumping = false; isSliding = false; vy = 0;
             playerBody.scale.set(1, 1, 1);
             playerBody.position.y = 0;
             playerGroup.position.set(0, 0, 0);
@@ -632,94 +1172,104 @@
             hunterDistance = safeHunterDistance;
             hunterGroup.position.set(0, 0, hunterDistance);
             
-            nextSpawnZ = -40;
+            nextSpawnZ = -60;
             for(let i=0; i<8; i++) spawnRow();
 
-            // UI
             uiStart.classList.add('hidden');
             uiGameOver.classList.add('hidden');
             uiPause.classList.add('hidden');
             uiHud.classList.remove('hidden');
-            damageOverlay.style.opacity = '0';
 
             gameState = 'PLAYING';
-            clock.start(); // Reiniciar reloj delta
-        }
-
-        function gameOver() {
-            gameState = 'GAMEOVER';
-            uiHud.classList.add('hidden');
-            uiGameOver.classList.remove('hidden');
-            finalScore.innerText = score;
+            clock.start();
         }
 
         function hitObstacle() {
-            // El impacto ralentiza, pero no tanto como antes
-            speed = Math.max(8, speed * 0.5); 
-            damageOverlay.style.opacity = '1';
-            setTimeout(() => { damageOverlay.style.opacity = '0'; }, 300);
+            speed = Math.max(12, speed * 0.4); 
             
-            playerBody.rotation.z = (Math.random() - 0.5) * 1.5;
+            const dmg = document.getElementById('damage-overlay');
+            dmg.style.opacity = '1';
+            setTimeout(() => { dmg.style.opacity = '0'; }, 300);
             
-            // Penalización: el cazador se acerca agresivamente
-            hunterDistance -= 15;
+            playerBody.rotation.z = (Math.random() - 0.5) * 2; // Tambaleo fuerte
             
-            // Si la distancia baja demasiado, mueres
-            if (hunterDistance <= 2) {
-                gameOver();
+            hunterDistance -= 18; // Penalización severa
+            
+            // Efecto de partículas de polvo al chocar
+            emitParticles(playerGroup.position.x, 1, playerGroup.position.z, 0x555555, 10);
+
+            if (hunterDistance <= 3) {
+                gameState = 'GAMEOVER';
+                uiHud.classList.add('hidden');
+                uiGameOver.classList.remove('hidden');
+                
+                document.getElementById('finalScore').innerText = score;
+                document.getElementById('finalDistance').innerText = Math.floor(distanceTraveled) + 'm';
+                document.getElementById('finalFood').innerText = foodCount;
             }
         }
 
         function collectFood(item) {
             item.userData.active = false;
-            item.visible = false; // Solo se oculta visualmente
+            item.visible = false;
             
-            score += 10;
+            const pts = item.userData.points;
+            score += pts;
+            foodCount++;
             scoreDisplay.innerText = score;
             
-            speed = Math.min(speed + 2, maxSpeed); 
-            hunterDistance = Math.min(hunterDistance + 5, safeHunterDistance);
+            showFloatingScore(pts, item.position.x, item.position.y);
+            emitParticles(item.position.x, 1.5, item.position.z, 0xffff00, 5); // Brillo al comer
+            
+            // Impulso de velocidad ("Speed Lines" effect)
+            speed = Math.min(speed + 3, maxSpeed); 
+            hunterDistance = Math.min(hunterDistance + 8, safeHunterDistance);
 
-            // Efecto visual al comer
-            playerBody.scale.set(1.3, 1.3, 1.3);
+            const spdOverlay = document.getElementById('speed-overlay');
+            spdOverlay.style.opacity = '1';
+            setTimeout(() => { spdOverlay.style.opacity = '0'; }, 200);
+
+            playerBody.scale.set(1.4, 1.4, 1.4);
             if(!isSliding) setTimeout(() => { playerBody.scale.set(1,1,1); }, 150);
         }
 
         function animate() {
             requestAnimationFrame(animate);
-            
             if (gameState === 'PAUSED') return;
 
-            // Limitar el delta para evitar un salto si cambias de pestaña
             const delta = Math.min(clock.getDelta(), 0.1);
             const time = clock.getElapsedTime();
 
             if (gameState === 'PLAYING') {
-                // Aceleración Progresiva
-                speed = Math.min(speed + delta * 0.6, maxSpeed);
+                // Lógica de Movimiento Principal
+                speed = Math.min(speed + delta * 0.4, maxSpeed);
                 const moveStep = speed * delta;
                 playerGroup.position.z -= moveStep;
+                distanceTraveled += moveStep;
 
-                // Movimiento Lateral Suave
-                const targetX = currentLane * laneWidth;
-                playerGroup.position.x += (targetX - playerGroup.position.x) * 15 * delta;
+                score += moveStep * 0.5; // Puntos por distancia
+                scoreDisplay.innerText = Math.floor(score);
                 
-                // Estabilizar rotación al chocar
-                playerBody.rotation.z += (0 - playerBody.rotation.z) * 5 * delta;
+                // Actualizar multiplicador visual de velocidad
+                document.getElementById('scoreMultiplier').innerText = `x${(speed/10).toFixed(1)}`;
 
-                // -- FÍSICAS DE SALTO --
+                const targetX = currentLane * laneWidth;
+                playerGroup.position.x += (targetX - playerGroup.position.x) * 12 * delta;
+                playerBody.rotation.z += (0 - playerBody.rotation.z) * 8 * delta; // Recuperar postura
+
+                // Físicas: Salto
                 if (isJumping) {
                     vy -= gravity * delta;
                     playerGroup.position.y += vy * delta;
-                    
                     if (playerGroup.position.y <= 0) {
                         playerGroup.position.y = 0;
                         isJumping = false;
                         vy = 0;
+                        emitParticles(playerGroup.position.x, 0, playerGroup.position.z, 0x333333, 3); // Polvo al aterrizar
                     }
                 }
 
-                // -- FÍSICAS DE DESLIZAMIENTO --
+                // Físicas: Deslizamiento
                 if (isSliding) {
                     slideTimer -= delta;
                     if (slideTimer <= 0) {
@@ -729,89 +1279,77 @@
                     }
                 }
 
-                // -- CÁMARA --
-                let camTarget = { x: playerGroup.position.x * 0.5, y: 7, z: playerGroup.position.z + 14 }; // Classic
-                let lookTarget = { x: playerGroup.position.x * 0.2, y: 2, z: playerGroup.position.z - 10 };
+                // Cámara Dinámica
+                let camTarget = { x: playerGroup.position.x * 0.4, y: 9, z: playerGroup.position.z + 18 }; 
+                let lookTarget = { x: playerGroup.position.x * 0.1, y: 2, z: playerGroup.position.z - 15 };
                 
-                if (cameraMode === 'ACTION') {
-                    camTarget = { x: playerGroup.position.x * 0.8, y: 3.5, z: playerGroup.position.z + 7 };
-                    lookTarget.y = 3; lookTarget.z = playerGroup.position.z - 15;
-                } else if (cameraMode === 'TOP') {
-                    camTarget = { x: playerGroup.position.x * 0.3, y: 20, z: playerGroup.position.z + 10 };
-                    lookTarget.y = 0; lookTarget.z = playerGroup.position.z - 5;
+                if (cameraMode === 'FAR') {
+                    camTarget = { x: playerGroup.position.x * 0.2, y: 15, z: playerGroup.position.z + 25 };
+                    lookTarget.z = playerGroup.position.z - 20;
+                } else if (cameraMode === 'ACTION') {
+                    camTarget = { x: playerGroup.position.x * 0.8, y: 4, z: playerGroup.position.z + 8 };
+                    lookTarget.y = 4; lookTarget.z = playerGroup.position.z - 25;
                 }
 
-                // Suavizar movimiento de cámara
-                camera.position.x += (camTarget.x - camera.position.x) * 5 * delta;
-                camera.position.y += (camTarget.y - camera.position.y) * 5 * delta;
-                camera.position.z = camTarget.z; // Z sigue rígido para no perder al jugador
+                camera.position.x += (camTarget.x - camera.position.x) * 4 * delta;
+                camera.position.y += (camTarget.y - camera.position.y) * 4 * delta;
+                camera.position.z = camTarget.z;
                 camera.lookAt(lookTarget.x, lookTarget.y, lookTarget.z);
                 
-                ground.position.z = playerGroup.position.z;
+                window.groundPlane.position.z = playerGroup.position.z;
 
-                // -- CAZADOR --
-                // El mapache recupera distancia lentamente si huye sin chocar
-                if (hunterDistance < safeHunterDistance) {
-                    hunterDistance += 3 * delta; 
-                }
-                // Limitar la distancia máxima
+                // Cazador Inteligente
+                if (hunterDistance < safeHunterDistance) hunterDistance += 4 * delta; 
                 hunterDistance = Math.min(hunterDistance, safeHunterDistance);
                 
-                // El cazador siempre sigue al mapache exactamente a la 'hunterDistance'
                 hunterGroup.position.z = playerGroup.position.z + hunterDistance;
-                
-                // Actualizar la UI
+                hunterGroup.position.x += (playerGroup.position.x - hunterGroup.position.x) * 4 * delta;
+
+                // UI Barra Peligro
                 const dangerPct = Math.max(0, 100 - (hunterDistance / safeHunterDistance) * 100);
                 dangerBar.style.width = `${dangerPct}%`;
-                
-                if (dangerPct > 70) dangerBar.classList.replace('from-orange-400', 'from-red-600');
-                else dangerBar.classList.replace('from-red-600', 'from-orange-400');
-                
-                // Suavizar el movimiento horizontal del cazador para que te siga
-                hunterGroup.position.x += (playerGroup.position.x - hunterGroup.position.x) * 3 * delta;
 
-                // -- ANIMACIONES MAPACHE --
+                // Animaciones Personajes
                 if (!isJumping && !isSliding) {
-                    const runCycle = time * speed * 0.8;
-                    playerBody.position.y = Math.abs(Math.sin(runCycle)) * 0.3;
-                    
-                    playerLegs[0].rotation.x = Math.sin(runCycle) * 0.8;
-                    playerLegs[1].rotation.x = -Math.sin(runCycle) * 0.8;
-                    playerLegs[2].rotation.x = -Math.sin(runCycle) * 0.8;
-                    playerLegs[3].rotation.x = Math.sin(runCycle) * 0.8;
+                    const rc = time * speed * 0.8;
+                    playerBody.position.y = Math.abs(Math.sin(rc)) * 0.35;
+                    playerLegs[0].rotation.x = Math.sin(rc);
+                    playerLegs[1].rotation.x = -Math.sin(rc);
+                    playerLegs[2].rotation.x = -Math.sin(rc);
+                    playerLegs[3].rotation.x = Math.sin(rc);
                 } else if (isJumping) {
-                    playerLegs.forEach(leg => leg.rotation.x = -0.5); // Patas encogidas
+                    playerLegs.forEach(leg => leg.rotation.x = -0.6);
                 } else if (isSliding) {
-                    playerLegs.forEach(leg => leg.rotation.x = Math.PI/2); // Patas estiradas atrás
+                    playerLegs.forEach(leg => leg.rotation.x = Math.PI/2);
                 }
-                
-                playerTail.rotation.y = Math.sin(time * speed * 1.5) * 0.3;
+                playerTail.rotation.y = Math.sin(time * speed * 1.5) * 0.4;
 
-                // -- GENERACIÓN --
-                if (playerGroup.position.z - spawnDistance < nextSpawnZ) {
-                    spawnRow();
-                }
+                const hc = time * speed * 0.7; // Cazador corre
+                hunterLegs[0].rotation.x = Math.sin(hc) * 0.8;
+                hunterLegs[1].rotation.x = -Math.sin(hc) * 0.8;
+                hunterGroup.children[0].position.y = 2.5 + Math.abs(Math.sin(hc)) * 0.4; // Rebote cuerpo
 
-                // -- COLISIONES AVANZADAS --
+                // Generación
+                if (playerGroup.position.z - spawnDistance < nextSpawnZ) spawnRow();
+
+                // Detección de Colisiones Avanzada
                 const pZ = playerGroup.position.z;
                 const pX = playerGroup.position.x;
-                const pRadius = 0.6; 
+                const pY = playerGroup.position.y;
+                const pRadius = 0.7; 
 
                 for (let i = activeObstacles.length - 1; i >= 0; i--) {
                     const obs = activeObstacles[i];
-                    
-                    if (obs.userData.active && Math.abs(obs.position.z - pZ) < 1.5) {
+                    if (obs.userData.active && Math.abs(obs.position.z - pZ) < 2.0) {
                         const dist = Math.hypot(obs.position.x - pX, obs.position.z - pZ);
                         
                         if (dist < obs.userData.radius + pRadius) {
                             let collision = false;
-                            
-                            if (obs.userData.type === 'tree') {
-                                collision = true; // El árbol choca siempre si estás en su carril
-                            } else if (obs.userData.type === 'branch') {
-                                if (!isSliding) collision = true; // Chocas si no te deslizas
-                            } else if (obs.userData.type === 'trap') {
-                                if (!isJumping || playerGroup.position.y < 1.2) collision = true; // Chocas si no saltas lo suficiente
+                            const type = obs.userData.type;
+
+                            if (type === 'tree' || type === 'tent') collision = true; // Chocas siempre
+                            else if (type === 'campfire') {
+                                if (pY < 1.0) collision = true; // Requiere salto
                             }
 
                             if (collision) {
@@ -820,42 +1358,68 @@
                             }
                         }
                     }
-                    if (obs.position.z > pZ + 15) {
-                        obs.userData.active = false;
-                        obs.visible = false;
+                    if (obs.position.z > pZ + 20) {
+                        obs.userData.active = false; obs.visible = false;
                         activeObstacles.splice(i, 1);
                     }
                 }
 
-                // Comida
+                // Recolección de Comida
                 for (let i = activeItems.length - 1; i >= 0; i--) {
                     const item = activeItems[i];
                     if (item.userData.active) {
-                        item.rotation.y += 3 * delta;
-                        item.position.y = Math.sin(time * 5 + item.userData.baseRot) * 0.3;
+                        item.rotation.y += 2 * delta;
+                        item.position.y = Math.sin(time * 5 + item.userData.baseRot) * 0.4;
                         
                         if (Math.abs(item.position.z - pZ) < 1.5) {
                             const dist = Math.hypot(item.position.x - pX, item.position.z - pZ);
-                            // Se puede agarrar la comida incluso saltando o deslizándose
                             if (dist < item.userData.radius + pRadius) collectFood(item);
                         }
                     }
-                    if (item.position.z > pZ + 15) {
-                        item.userData.active = false;
-                        item.visible = false;
+                    if (item.position.z > pZ + 20) {
+                        item.userData.active = false; item.visible = false;
                         activeItems.splice(i, 1);
                     }
                 }
                 
-                sceneryTrees.forEach(tree => {
-                    if (tree.position.z > pZ + 20) tree.position.z = pZ - 180 - Math.random()*70;
+                // Reciclar fondo
+                sceneryObjects.forEach(obj => {
+                    if (obj.position.z > pZ + 30) obj.position.z = pZ - 300 - Math.random()*100;
                 });
-                
+
             } else if (gameState === 'START') {
-                camera.position.x = Math.sin(time * 0.5) * 5;
-                camera.lookAt(0, 2, -10);
+                // Cámara cinematográfica en el menú
+                camera.position.x = Math.sin(time * 0.3) * 10;
+                camera.position.y = 4 + Math.sin(time * 0.5) * 2;
+                camera.lookAt(0, 2, -20);
+                window.groundPlane.position.z -= 2 * delta; // Suelo se mueve lento
+            } else if (gameState === 'CUSTOMIZE') {
+                // Orbita alrededor del mapache
+                camera.position.x = Math.sin(time) * 6;
+                camera.position.z = Math.cos(time) * 6;
+                camera.position.y = 3;
+                camera.lookAt(0, 1.5, 0);
             }
 
+            // Animar Fogatas (Estén donde estén)
+            objectPool.campfire.forEach(cf => {
+                if(cf.userData.active) {
+                    const fMesh = cf.userData.fireMesh;
+                    fMesh.scale.set(
+                        1 + Math.sin(time * 15 + cf.position.x)*0.2,
+                        1 + Math.sin(time * 20)*0.3,
+                        1 + Math.cos(time * 15)*0.2
+                    );
+                    cf.userData.light.intensity = 1 + Math.sin(time * 10)*0.3;
+                    
+                    // Emisión esporádica de chispas
+                    if(Math.random() < 0.1 && gameState === 'PLAYING' && Math.abs(cf.position.z - camera.position.z) < 100) {
+                        emitParticles(cf.position.x, 1.5, cf.position.z, colors.fire, 1);
+                    }
+                }
+            });
+
+            updateParticles(delta);
             renderer.render(scene, camera);
         }
 
