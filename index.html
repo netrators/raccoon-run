@@ -12,7 +12,7 @@
         body { 
             margin: 0; 
             overflow: hidden; 
-            background-color: #050a0f; 
+            background-color: #ff6b35; 
             font-family: 'Inter', sans-serif; 
             touch-action: none; 
             user-select: none; 
@@ -381,16 +381,16 @@
             light: new THREE.MeshLambertMaterial({ color: skins[0].light })
         };
 
-        // Paleta Global
+        // Paleta Global (ATARDECER)
         const colors = {
-            bg: 0x0a0c10, fog: 0x0a0c10, // Noche oscura
-            ground: 0x121a15, path: 0x1c251e,
-            treeTrunk: 0x2d1a10, treeLeaves: 0x0c2415,
-            bush: 0x0f2e1a, grass: 0x1b3a24,
-            woodDark: 0x1f1208, metal: 0x778899,
-            hunter: 0x5c0000,
+            bg: 0xff6b35, fog: 0xe85d04, // Atardecer vibrante y cálido
+            ground: 0x8b5a2b, path: 0x6e431f, // Tierra iluminada por el sol
+            treeTrunk: 0x4a2e10, treeLeaves: 0x2e4a1a,
+            bush: 0x3a5a2a, grass: 0x4b7022,
+            woodDark: 0x3d2314, metal: 0x778899,
+            hunter: 0x3d0c02,
             fire: 0xff5500, fireLight: 0xffaa00,
-            tent: [0x1e3a8a, 0x064e3b, 0x7f1d1d], // Colores variados para tiendas
+            tent: [0x1e3a8a, 0x064e3b, 0x7f1d1d],
             burgerBun: 0xd9a05b, burgerMeat: 0x4a2e10, burgerLettuce: 0x4ade80,
             hotdogBun: 0xe6b981, hotdogMeat: 0x993300, mustard: 0xeab308,
             friesBox: 0xdc2626, fries: 0xfcd34d
@@ -416,6 +416,30 @@
             fries: new THREE.MeshLambertMaterial({ color: colors.fries })
         };
 
+        // GEOMETRÍAS COMPARTIDAS (Optimización CRÍTICA para evitar que se trabe)
+        // Guardar la geometría una sola vez evita asfixiar la RAM del dispositivo
+        const geos = {
+            trunk: new THREE.CylinderGeometry(0.6, 0.9, 1, 5), 
+            leaves: new THREE.ConeGeometry(1, 1, 5),           
+            bush: new THREE.DodecahedronGeometry(1, 0),
+            grass: new THREE.ConeGeometry(0.15, 1.2, 3),
+            tent: new THREE.CylinderGeometry(2.5, 2.5, 5, 3),
+            pole: new THREE.CylinderGeometry(0.1, 0.1, 3.5, 4),
+            stone: new THREE.DodecahedronGeometry(0.3, 0),
+            log: new THREE.CylinderGeometry(0.2, 0.2, 1.8, 4),
+            fire: new THREE.ConeGeometry(0.6, 1.5, 4),
+            // Comida
+            bBunB: new THREE.CylinderGeometry(0.7, 0.7, 0.28, 8),
+            bMeat: new THREE.CylinderGeometry(0.735, 0.735, 0.21, 8),
+            bLettuce: new THREE.CylinderGeometry(0.805, 0.805, 0.07, 6),
+            bBunT: new THREE.SphereGeometry(0.7, 8, 6, 0, Math.PI*2, 0, Math.PI/2),
+            hdBun: new THREE.BoxGeometry(0.9, 0.6, 2.1),
+            hdMeat: new THREE.CylinderGeometry(0.24, 0.24, 2.28, 6),
+            mustard: new THREE.BoxGeometry(0.12, 0.12, 1.92),
+            fBox: new THREE.BoxGeometry(1.2, 1.6, 0.64),
+            fry: new THREE.BoxGeometry(0.12, 1.2, 0.12)
+        };
+
         function init() {
             clock = new THREE.Clock();
 
@@ -430,26 +454,27 @@
             // Renderizador
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Limitar a 2x para rendimiento
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); // Optimizado para móviles pesados
             renderer.shadowMap.enabled = highQuality;
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
             document.body.appendChild(renderer.domElement);
 
-            // Luces (Atardecer/Noche en el bosque)
-            const ambientLight = new THREE.AmbientLight(0x1a2533, 0.6); // Luz azulada tenue
+            // Luces (Atardecer)
+            const ambientLight = new THREE.AmbientLight(0xffbbaa, 0.65); // Luz ambiental cálida
             scene.add(ambientLight);
 
-            dirLight = new THREE.DirectionalLight(0xddeeff, 0.8); // Luz de luna
-            dirLight.position.set(-30, 60, -20);
+            dirLight = new THREE.DirectionalLight(0xffddaa, 1.2); // Sol bajo del atardecer
+            dirLight.position.set(-60, 40, -80);
             dirLight.castShadow = highQuality;
-            dirLight.shadow.camera.left = -50;
-            dirLight.shadow.camera.right = 50;
-            dirLight.shadow.camera.top = 50;
-            dirLight.shadow.camera.bottom = -50;
+            dirLight.shadow.camera.left = -60;
+            dirLight.shadow.camera.right = 60;
+            dirLight.shadow.camera.top = 60;
+            dirLight.shadow.camera.bottom = -60;
             dirLight.shadow.camera.near = 0.1;
-            dirLight.shadow.camera.far = 200;
+            dirLight.shadow.camera.far = 250;
             dirLight.shadow.mapSize.width = 1024;
             dirLight.shadow.mapSize.height = 1024;
+            dirLight.shadow.bias = -0.001; // Evita artefactos de sombras procesadas
             scene.add(dirLight);
 
             // Suelo procedural detallado
@@ -481,8 +506,8 @@
             createHunter();
             initParticles();
             
-            // Generar bosque ambiental enorme
-            for(let i = 0; i < 200; i++) spawnSceneryObject();
+            // Generar bosque ambiental optimizado (120 en lugar de 200)
+            for(let i = 0; i < 120; i++) spawnSceneryObject();
 
             setupEventListeners();
             animate();
@@ -661,20 +686,24 @@
             scene.add(hunterGroup);
         }
 
-        // OBSTÁCULOS
-        function createTree() {
+        // OBSTÁCULOS (Optimizados con Geometrías Compartidas)
+        function createTree(isScenery = false) {
             const group = new THREE.Group();
             const trunkH = 3 + Math.random() * 3;
-            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.9, trunkH, 6), mats.trunk);
-            trunk.position.y = trunkH / 2; trunk.castShadow = true;
+            
+            const trunk = new THREE.Mesh(geos.trunk, mats.trunk);
+            trunk.scale.y = trunkH;
+            trunk.position.y = trunkH / 2; 
+            if(!isScenery) trunk.castShadow = true;
             group.add(trunk);
             
             let yOffset = trunkH * 0.7;
             for(let i=0; i<3; i++) {
-                const leaves = new THREE.Mesh(new THREE.ConeGeometry(3 - i*0.6, 3.5, 6), mats.leaves);
-                leaves.position.y = yOffset + 1.5; leaves.castShadow = true;
-                
-                // Rotación aleatoria para que no se vean todos iguales
+                const leaves = new THREE.Mesh(geos.leaves, mats.leaves);
+                const scaleXZ = 3 - i*0.6;
+                leaves.scale.set(scaleXZ, 3.5, scaleXZ);
+                leaves.position.y = yOffset + 1.5; 
+                if(!isScenery) leaves.castShadow = true;
                 leaves.rotation.y = Math.random() * Math.PI;
                 group.add(leaves);
                 yOffset += 2.0;
@@ -685,29 +714,20 @@
 
         function createTent() {
             const group = new THREE.Group();
-            
-            // Tienda tipo canadiense (Prisma)
-            const geo = new THREE.CylinderGeometry(2.5, 2.5, 5, 3);
-            
-            // Color aleatorio para la tienda
             const tentColor = colors.tent[Math.floor(Math.random() * colors.tent.length)];
             const tentMat = new THREE.MeshLambertMaterial({ color: tentColor, flatShading: true });
             
-            const tent = new THREE.Mesh(geo, tentMat);
-            // Rotar para que parezca una tienda de campaña
+            const tent = new THREE.Mesh(geos.tent, tentMat);
             tent.rotation.x = Math.PI / 2;
             tent.rotation.z = Math.PI / 2;
             tent.position.y = 1.2;
             tent.castShadow = true;
             group.add(tent);
 
-            // Postes de madera en los extremos
-            const poleGeo = new THREE.CylinderGeometry(0.1, 0.1, 3.5, 4);
-            const p1 = new THREE.Mesh(poleGeo, mats.wood); p1.position.set(0, 1.75, 2.5);
-            const p2 = new THREE.Mesh(poleGeo, mats.wood); p2.position.set(0, 1.75, -2.5);
+            const p1 = new THREE.Mesh(geos.pole, mats.wood); p1.position.set(0, 1.75, 2.5);
+            const p2 = new THREE.Mesh(geos.pole, mats.wood); p2.position.set(0, 1.75, -2.5);
             group.add(p1, p2);
 
-            // Ancha, bloquea carril, requiere moverse
             group.userData = { type: 'tent', radius: 1.8, active: true };
             return group;
         }
@@ -715,63 +735,43 @@
         function createCampfire() {
             const group = new THREE.Group();
             
-            // Piedras alrededor
-            for(let i=0; i<8; i++) {
-                const stone = new THREE.Mesh(new THREE.DodecahedronGeometry(0.3), mats.metal);
-                const angle = (i / 8) * Math.PI * 2;
+            for(let i=0; i<6; i++) { // 6 piedras en lugar de 8
+                const stone = new THREE.Mesh(geos.stone, mats.metal);
+                const angle = (i / 6) * Math.PI * 2;
                 stone.position.set(Math.cos(angle)*1.2, 0.1, Math.sin(angle)*1.2);
                 group.add(stone);
             }
 
-            // Troncos
-            const logGeo = new THREE.CylinderGeometry(0.2, 0.2, 1.8, 5);
             for(let i=0; i<3; i++) {
-                const log = new THREE.Mesh(logGeo, mats.trunk);
+                const log = new THREE.Mesh(geos.log, mats.trunk);
                 log.rotation.x = Math.PI / 2;
                 log.rotation.z = (i / 3) * Math.PI;
                 log.position.y = 0.2;
                 group.add(log);
             }
 
-            // Fuego (Geometría principal)
-            const fireGeo = new THREE.ConeGeometry(0.6, 1.5, 4);
-            const fire = new THREE.Mesh(fireGeo, mats.fire);
+            const fire = new THREE.Mesh(geos.fire, mats.fire);
             fire.position.y = 1.0;
             group.add(fire);
-            group.userData.fireMesh = fire; // Guardar referencia para animarlo
+            group.userData.fireMesh = fire; 
 
-            // Luz de la fogata
-            const light = new THREE.PointLight(colors.fireLight, 1, 15);
+            const light = new THREE.PointLight(colors.fireLight, 1.5, 12);
             light.position.y = 1.5;
             group.add(light);
             group.userData.light = light;
 
-            // Requiere salto (Hitbox ancha pero baja)
             group.userData = { type: 'campfire', radius: 1.5, active: true };
             return group;
         }
 
         function createHamburger() {
             const group = new THREE.Group();
-            const s = 0.7; // Escala general
-            
-            // Pan inferior
-            const bunB = new THREE.Mesh(new THREE.CylinderGeometry(1*s, 1*s, 0.4*s, 12), mats.bBun);
-            bunB.position.y = 0.2*s;
-            // Carne
-            const meat = new THREE.Mesh(new THREE.CylinderGeometry(1.05*s, 1.05*s, 0.3*s, 12), mats.bMeat);
-            meat.position.y = 0.6*s;
-            // Lechuga (Ligeramente más grande y desordenada)
-            const lettuce = new THREE.Mesh(new THREE.CylinderGeometry(1.15*s, 1.15*s, 0.1*s, 8), mats.bLettuce);
-            lettuce.position.y = 0.85*s;
-            lettuce.rotation.y = Math.PI/4;
-            // Pan Superior
-            const bunT = new THREE.Mesh(new THREE.SphereGeometry(1*s, 12, 8, 0, Math.PI*2, 0, Math.PI/2), mats.bBun);
-            bunT.position.y = 0.9*s;
+            const bunB = new THREE.Mesh(geos.bBunB, mats.bBun); bunB.position.y = 0.14;
+            const meat = new THREE.Mesh(geos.bMeat, mats.bMeat); meat.position.y = 0.42;
+            const lettuce = new THREE.Mesh(geos.bLettuce, mats.bLettuce); lettuce.position.y = 0.595; lettuce.rotation.y = Math.PI/4;
+            const bunT = new THREE.Mesh(geos.bBunT, mats.bBun); bunT.position.y = 0.63;
             
             group.add(bunB, meat, lettuce, bunT);
-            
-            // Rotar un poco para que se vea mejor de frente
             group.rotation.x = Math.PI/8;
             group.scale.setScalar(1.2);
             group.userData = { type: 'burger', radius: 1.0, active: true, points: 30, baseRot: Math.random()*Math.PI };
@@ -780,21 +780,10 @@
 
         function createHotdog() {
             const group = new THREE.Group();
-            const s = 0.6;
+            const bun = new THREE.Mesh(geos.hdBun, mats.hdBun); bun.position.y = 0.3;
+            const sausage = new THREE.Mesh(geos.hdMeat, mats.hdMeat); sausage.rotation.x = Math.PI/2; sausage.position.y = 0.48;
+            const mustard = new THREE.Mesh(geos.mustard, mats.mustard); mustard.position.y = 0.66;
             
-            // Pan
-            const bun = new THREE.Mesh(new THREE.BoxGeometry(1.5*s, 1*s, 3.5*s), mats.hdBun);
-            bun.position.y = 0.5*s;
-            
-            // Salchicha
-            const sausage = new THREE.Mesh(new THREE.CylinderGeometry(0.4*s, 0.4*s, 3.8*s, 8), mats.hdMeat);
-            sausage.rotation.x = Math.PI/2;
-            sausage.position.y = 0.8*s;
-            
-            // Mostaza (Zigzag simple)
-            const mustard = new THREE.Mesh(new THREE.BoxGeometry(0.2*s, 0.2*s, 3.2*s), mats.mustard);
-            mustard.position.y = 1.1*s;
-
             group.add(bun, sausage, mustard);
             group.scale.setScalar(1.2);
             group.userData = { type: 'hotdog', radius: 1.0, active: true, points: 20, baseRot: Math.random()*Math.PI };
@@ -803,19 +792,14 @@
 
         function createFries() {
             const group = new THREE.Group();
-            const s = 0.8;
+            const box = new THREE.Mesh(geos.fBox, mats.fBox); box.position.y = 0.8;
             
-            // Caja roja
-            const box = new THREE.Mesh(new THREE.BoxGeometry(1.5*s, 2*s, 0.8*s), mats.fBox);
-            box.position.y = 1*s;
-            
-            // Papas (Múltiples cilindros/cajas amarillas)
-            for(let i=0; i<8; i++) {
-                const fry = new THREE.Mesh(new THREE.BoxGeometry(0.15*s, 1.5*s, 0.15*s), mats.fries);
+            for(let i=0; i<6; i++) { // 6 papas en lugar de 8
+                const fry = new THREE.Mesh(geos.fry, mats.fries);
                 fry.position.set(
-                    (Math.random()-0.5) * 1.0 * s,
-                    1.8*s + Math.random()*0.5*s,
-                    (Math.random()-0.5) * 0.4 * s
+                    (Math.random()-0.5)*0.8,
+                    1.44 + Math.random()*0.4,
+                    (Math.random()-0.5)*0.32
                 );
                 fry.rotation.x = (Math.random()-0.5)*0.5;
                 fry.rotation.z = (Math.random()-0.5)*0.5;
@@ -828,22 +812,21 @@
             return group;
         }
 
-        // OBJETOS AMBIENTALES
+        // OBJETOS AMBIENTALES (Sin sombras proyectadas para máximo rendimiento)
         function createBush() {
             const group = new THREE.Group();
-            const geo = new THREE.DodecahedronGeometry(1.5 + Math.random());
-            const bush1 = new THREE.Mesh(geo, mats.bush); bush1.position.y = 0.8; bush1.castShadow = true;
-            const bush2 = new THREE.Mesh(geo, mats.bush); bush2.position.set(1.2, 0.5, 0.8); bush2.scale.setScalar(0.7);
-            const bush3 = new THREE.Mesh(geo, mats.bush); bush3.position.set(-1.2, 0.6, -0.5); bush3.scale.setScalar(0.8);
+            const s1 = 1.5 + Math.random();
+            const bush1 = new THREE.Mesh(geos.bush, mats.bush); bush1.scale.setScalar(s1); bush1.position.y = s1/2;
+            const bush2 = new THREE.Mesh(geos.bush, mats.bush); bush2.position.set(1.2, 0.5, 0.8); bush2.scale.setScalar(0.7);
+            const bush3 = new THREE.Mesh(geos.bush, mats.bush); bush3.position.set(-1.2, 0.6, -0.5); bush3.scale.setScalar(0.8);
             group.add(bush1, bush2, bush3);
             return group;
         }
 
         function createGrass() {
             const group = new THREE.Group();
-            const geo = new THREE.ConeGeometry(0.15, 1.2, 3);
-            for(let i=0; i<8; i++) {
-                const blade = new THREE.Mesh(geo, mats.grass);
+            for(let i=0; i<5; i++) { // 5 hojas de hierba
+                const blade = new THREE.Mesh(geos.grass, mats.grass);
                 blade.position.set((Math.random()-0.5)*2, 0.6, (Math.random()-0.5)*2);
                 blade.rotation.x = (Math.random()-0.5)*0.6;
                 blade.rotation.z = (Math.random()-0.5)*0.6;
@@ -855,7 +838,7 @@
         function spawnSceneryObject() {
             let item;
             const rand = Math.random();
-            if (rand < 0.4) item = createTree();
+            if (rand < 0.4) item = createTree(true); // isScenery = true -> Sin sombras
             else if (rand < 0.7) item = createBush();
             else item = createGrass();
             
@@ -1122,7 +1105,16 @@
             
             renderer.shadowMap.enabled = highQuality;
             dirLight.castShadow = highQuality;
-            scene.traverse(child => { if (child.isMesh) child.castShadow = child.receiveShadow = highQuality; });
+            
+            // OPTIMIZADO: Si elige baja calidad, el PixelRatio cae a 1.0, duplicando los FPS.
+            renderer.setPixelRatio(isHigh ? Math.min(window.devicePixelRatio, 1.5) : 1);
+            
+            // Forzar actualización de materiales sin arruinar la optimización del fondo
+            scene.traverse(child => { 
+                if (child.isMesh && child.material) {
+                    child.material.needsUpdate = true;
+                }
+            });
         }
 
         function togglePause() {
